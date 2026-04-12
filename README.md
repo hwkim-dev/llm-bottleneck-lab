@@ -6,6 +6,6 @@ Instead of pruning the model architecture, it leverages quantization and low-lev
 ## Core Features
 * **Multi-Backend Architecture**: 
   * `x64` (amd64): Local PC inference accelerated by C++, SIMD instructions, and Vulkan API.
-  * `NPU(uXC)`: Custom FPGA backend utilizing proprietary bare-metal APIs(uXC u(micro) eXcelerator Core).
+  * `NPU(uCA)`: Custom FPGA backend utilizing proprietary bare-metal APIs(uCA: u(micro) compute Architecture).
 * **Native & Zero-Bloat**: Built entirely without heavy framework dependencies to minimize memory and CPU overhead.
 * **Aggressive Quantization**: Maintains full model architecture while reducing memory footprints to fit strictly constrained environments.
