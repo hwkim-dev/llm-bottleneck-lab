@@ -1,0 +1,31 @@
+# ========================================
+# LLM Weights & Data (Absolute Must Ignore!)
+# ========================================
+*.safetensors
+local_gemma_3n/
+*.npy
+
+# ========================================
+# Python & PYNQ Environment
+# ========================================
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+pynq_env/
+venv/
+env/
+.env
+*.json
+*.jinja
+*.spv~
+
+
+# markdown and extention for personal use
+GEMINI.md
+.VSCodeCounter/
+.github/
+.settings/
+github/
+settings/
+CLAUDE.md
+*.txt
