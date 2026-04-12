@@ -18,7 +18,7 @@ os.chdir(base_dir)
 # Load the GPU just once when the program is turned on.
 vk_lib.init_vulkan_engine()
 
-# <><><><><><><><><><><><><><><Parameters><><><><><><><><><><><><><><
+# <><><><><><><><><><><><><><>Parameters<><><><><><><><><><><><><><>
 
 vk_lib.run_vulkan_gemv.argtypes = [
     np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'), # x
@@ -50,13 +50,32 @@ vk_lib.run_vulkan_gemv_pingpong.argtypes = [
 ]
 vk_lib.run_vulkan_gemv_pingpong.restype = None
 
-# <><><><><><><><><><><><><><><Parameters><><><><><><><><><><><><><><
+# <><><><><><><><><><><><><><>Parameters<><><><><><><><><><><><><><>
 
+# ================================================================
+# Pre-allocated buffer pools (avoid per-call allocation)
+# ================================================================
 _OUTPUT_BUF_POOL = {}
 def _get_output_buf(size: int) -> np.ndarray:
     if size not in _OUTPUT_BUF_POOL:
         _OUTPUT_BUF_POOL[size] = np.empty(size, dtype=np.float32)
     return _OUTPUT_BUF_POOL[size]
+
+# Reusable x buffer (avoids ascontiguousarray + astype every call)
+_X_BUF = None
+def _get_x_buf(size: int) -> np.ndarray:
+    global _X_BUF
+    if _X_BUF is None or _X_BUF.size < size:
+        _X_BUF = np.empty(size, dtype=np.float32)
+    return _X_BUF[:size]
+
+def _prepare_x(x_vec: np.ndarray) -> np.ndarray:
+    """Convert x to float32 contiguous, reusing buffer when possible."""
+    if x_vec.dtype == np.float32 and x_vec.flags['C_CONTIGUOUS']:
+        return x_vec
+    buf = _get_x_buf(x_vec.size)
+    np.copyto(buf, x_vec.ravel().astype(np.float32))
+    return buf
 
 # -----------------------------------------------------------
 
@@ -64,24 +83,24 @@ def _get_output_buf(size: int) -> np.ndarray:
 # # ================================================================
 def preload_and_free(W: dict, keys: list): pass
 def _get_or_upload_weight(weight_data): pass
-def warmup(): print("[Vulkan_GEMV] shader engine load compelete ")
+def warmup(): print("[Vulkan_GEMV] shader engine load complete ")
 
 # ================================================================
-# 4. Matrix product interface
+# 4. Matrix product interface (optimized: caller-provided out buffer)
 # ================================================================
-def igpu_matmul(x_vec: np.ndarray, weight_data) -> np.ndarray:
-    x_f32 = np.ascontiguousarray(x_vec.astype(np.float32))
+def igpu_matmul(x_vec: np.ndarray, weight_data, out: np.ndarray = None) -> np.ndarray:
+    x_f32 = _prepare_x(x_vec)
     
     if isinstance(weight_data, tuple):
         packed, scale = weight_data
         M_out = packed.shape[0]
         K_in = packed.shape[1] * 2
         
-        out_buf = _get_output_buf(M_out)
+        if out is None:
+            out = _get_output_buf(M_out)
         
-        vk_lib.run_vulkan_gemv(x_f32, packed, scale, out_buf, M_out, K_in)
-        
-        return out_buf.copy()
+        vk_lib.run_vulkan_gemv(x_f32, packed, scale, out, M_out, K_in)
+        return out
     else:
         w_f32 = np.ascontiguousarray(weight_data.astype(np.float32))
         return np.dot(x_f32, w_f32)
@@ -99,22 +118,19 @@ def prefetch_weight(weight_data, buf_idx: int):
         K_in = packed.shape[1] * 2
         vk_lib.prefetch_weight_async(packed, M_out, K_in, buf_idx)
 
-def compute_pingpong(x_vec: np.ndarray, weight_data, buf_idx: int) -> np.ndarray:
-    x_f32 = np.ascontiguousarray(x_vec.astype(np.float32))
+def compute_pingpong(x_vec: np.ndarray, weight_data, buf_idx: int, out: np.ndarray = None) -> np.ndarray:
+    x_f32 = _prepare_x(x_vec)
     
     if isinstance(weight_data, tuple):
         packed, scale = weight_data
         M_out = packed.shape[0]
         K_in = packed.shape[1] * 2
         
-        out_buf = _get_output_buf(M_out)
-        vk_lib.run_vulkan_gemv_pingpong(x_f32, scale, out_buf, M_out, K_in, buf_idx)
-        return out_buf.copy()
+        if out is None:
+            out = _get_output_buf(M_out)
+        
+        vk_lib.run_vulkan_gemv_pingpong(x_f32, scale, out, M_out, K_in, buf_idx)
+        return out
     else:
         w_f32 = np.ascontiguousarray(weight_data.astype(np.float32))
         return np.dot(x_f32, w_f32.T)
-
-
-
-
-

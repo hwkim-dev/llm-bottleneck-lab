@@ -35,9 +35,14 @@ VkDescriptorSet g_descriptorSet[2];
 VkBuffer g_xBuf, g_scaleBuf, g_outBuf;
 VkDeviceMemory g_xMem, g_scaleMem, g_outMem;
 void *g_xMapped, *g_scaleMapped, *g_outMapped;
-// Note: Single g_descriptorSet declaration deleted! (since it was declared as an array above)
 
 std::future<void> weight_loader;
+
+// ================================================================
+// Reusable CommandBuffer pool (avoid per-call alloc/free overhead)
+// ================================================================
+VkCommandBuffer g_cmdBuf[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+VkFence g_fence = VK_NULL_HANDLE;
 
 std::vector<char> readFile(const std::string &filename)
 {
@@ -148,8 +153,23 @@ extern "C"
         VkCommandPoolCreateInfo cmdPoolInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, 0};
         vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &commandPool);
 
-        std::cout << "[Vulkan] buffer setting complete" << std::endl;
+        // ================================================================
+        // Pre-allocate 2 reusable CommandBuffers + 1 Fence
+        // ================================================================
+        VkCommandBufferAllocateInfo cmdAllocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, nullptr, commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 2};
+        vkAllocateCommandBuffers(device, &cmdAllocInfo, g_cmdBuf);
+
+        VkFenceCreateInfo fenceInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+        vkCreateFence(device, &fenceInfo, nullptr, &g_fence);
+
+        std::cout << "[Vulkan] buffer setting complete (optimized: reusable cmdbufs + fence)" << std::endl;
     }
+
+    // ================================================================
+    // Optimized prefetch: copies both weight AND scale in background
+    // ================================================================
+    static float *g_pendingScale[2] = {nullptr, nullptr};
+    static int g_pendingM[2] = {0, 0};
 
     void prefetch_weight_async(const uint8_t *mat_p, int M_out, int K_in, int buf_idx)
     {
@@ -157,6 +177,20 @@ extern "C"
                                    { memcpy(g_matMapped[buf_idx], mat_p, M_out * (K_in / 2) * sizeof(uint8_t)); });
     }
 
+    // Enhanced prefetch: weight + scale together
+    void prefetch_weight_scale_async(const uint8_t *mat_p, const float *scale, int M_out, int K_in, int buf_idx)
+    {
+        g_pendingScale[buf_idx] = (float *)scale;
+        g_pendingM[buf_idx] = M_out;
+        weight_loader = std::async(std::launch::async, [=]()
+                                   {
+            memcpy(g_matMapped[buf_idx], mat_p, M_out * (K_in / 2) * sizeof(uint8_t));
+            memcpy(g_scaleMapped, scale, M_out * sizeof(float)); });
+    }
+
+    // ================================================================
+    // Optimized pingpong: reuse CommandBuffer + Fence (no alloc/free)
+    // ================================================================
     void run_vulkan_gemv_pingpong(const float *x, const float *scale, float *out, int M_out, int K_in, int buf_idx)
     {
         if (weight_loader.valid())
@@ -167,66 +201,69 @@ extern "C"
         memcpy(g_xMapped, x, K_in * sizeof(float));
         memcpy(g_scaleMapped, scale, M_out * sizeof(float));
 
-        VkCommandBufferAllocateInfo cmdAllocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, nullptr, commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1};
-        VkCommandBuffer commandBuffer;
-        vkAllocateCommandBuffers(device, &cmdAllocInfo, &commandBuffer);
+        // Wait for fence from previous submission
+        vkWaitForFences(device, 1, &g_fence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &g_fence);
+
+        // Reset and re-record command buffer (much cheaper than alloc/free)
+        VkCommandBuffer cmdBuf = g_cmdBuf[buf_idx];
+        vkResetCommandBuffer(cmdBuf, 0);
 
         VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr};
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &g_descriptorSet[buf_idx], 0, nullptr);
+        vkBeginCommandBuffer(cmdBuf, &beginInfo);
+        vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);
+        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &g_descriptorSet[buf_idx], 0, nullptr);
 
         PushConstants pushParams = {(uint32_t)M_out, (uint32_t)(K_in / 32)};
-        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstants), &pushParams);
+        vkCmdPushConstants(cmdBuf, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstants), &pushParams);
 
         uint32_t groupCountX = (M_out + 31) / 32;
-        vkCmdDispatch(commandBuffer, groupCountX, 1, 1);
+        vkCmdDispatch(cmdBuf, groupCountX, 1, 1);
 
-        // NOTE: Removed error with memcpy(out, g_outMapped...) here.
+        vkEndCommandBuffer(cmdBuf);
 
-        vkEndCommandBuffer(commandBuffer);
+        VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &cmdBuf, 0, nullptr};
+        vkQueueSubmit(computeQueue, 1, &submitInfo, g_fence);
+        
+        // Wait with fence (more efficient than vkQueueWaitIdle which blocks the entire queue)
+        vkWaitForFences(device, 1, &g_fence, VK_TRUE, UINT64_MAX);
 
-        VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &commandBuffer, 0, nullptr};
-        vkQueueSubmit(computeQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(computeQueue);
-
-        // After completing the calculation, subtract the result just once.
+        // Copy result
         memcpy(out, g_outMapped, M_out * sizeof(float));
-
-        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     }
 
-    // Legacy functions left for compatibility (modified with array index [0])
+    // Legacy functions left for compatibility (also optimized with reusable cmdbufs)
     void run_vulkan_gemv(const float *x, const uint8_t *mat_p, const float *scale, float *out, int M_out, int K_in)
     {
         memcpy(g_xMapped, x, K_in * sizeof(float));
-        memcpy(g_matMapped[0], mat_p, M_out * (K_in / 2) * sizeof(uint8_t)); // [0] Enabled
+        memcpy(g_matMapped[0], mat_p, M_out * (K_in / 2) * sizeof(uint8_t));
         memcpy(g_scaleMapped, scale, M_out * sizeof(float));
 
-        VkCommandBufferAllocateInfo cmdAllocInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, nullptr, commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1};
-        VkCommandBuffer commandBuffer;
-        vkAllocateCommandBuffers(device, &cmdAllocInfo, &commandBuffer);
+        vkWaitForFences(device, 1, &g_fence, VK_TRUE, UINT64_MAX);
+        vkResetFences(device, 1, &g_fence);
+
+        VkCommandBuffer cmdBuf = g_cmdBuf[0];
+        vkResetCommandBuffer(cmdBuf, 0);
 
         VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr};
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+        vkBeginCommandBuffer(cmdBuf, &beginInfo);
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &g_descriptorSet[0], 0, nullptr); // [0] Enabled
+        vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);
+        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &g_descriptorSet[0], 0, nullptr);
 
         PushConstants pushParams;
         pushParams.M_out = (uint32_t)M_out;
         pushParams.K_in_uints = (uint32_t)(K_in / 32);
-        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstants), &pushParams);
+        vkCmdPushConstants(cmdBuf, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstants), &pushParams);
 
         uint32_t groupCountX = (M_out + 31) / 32;
-        vkCmdDispatch(commandBuffer, groupCountX, 1, 1);
-        vkEndCommandBuffer(commandBuffer);
+        vkCmdDispatch(cmdBuf, groupCountX, 1, 1);
+        vkEndCommandBuffer(cmdBuf);
 
-        VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &commandBuffer, 0, nullptr};
-        vkQueueSubmit(computeQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(computeQueue);
+        VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &cmdBuf, 0, nullptr};
+        vkQueueSubmit(computeQueue, 1, &submitInfo, g_fence);
+        vkWaitForFences(device, 1, &g_fence, VK_TRUE, UINT64_MAX);
 
         memcpy(out, g_outMapped, M_out * sizeof(float));
-        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     }
 }
