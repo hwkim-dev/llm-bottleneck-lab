@@ -7,7 +7,7 @@ This document is the official integrated manual covering the mathematical archit
 
 ## 📚 PART 1: Core Architecture & Mechanisms
 
-Gemma 3N 모델을 구성하는 핵심 특수 메커니즘들입니다.
+
 
 # Attention and RoPE Constraints in Gemma 3N
 
