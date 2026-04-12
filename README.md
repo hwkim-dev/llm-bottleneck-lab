@@ -33,7 +33,7 @@ First, install the essential system packages required for compiling C++ kernels 
 ```bash
 sudo apt update
 sudo apt install build-essential libvulkan-dev glslang-tools
-
+```
 
 Next, install the required Python packages. Using a virtual environment (e.g., pynq_env) is highly recommended.
 
