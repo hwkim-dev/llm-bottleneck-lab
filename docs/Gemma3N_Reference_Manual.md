@@ -1,6 +1,7 @@
 # Gemma 3N E4B Comprehensive Reference Manual
 
-이 문서는 Gemma 3N E4B의 수학적 아키텍처 이론, 전체 데이터 파이프라인 수식, 그리고 저수준(C++/Vulkan) 코드 구현 명세서를 하나로 통합한 공식 매뉴얼입니다.
+This document is the official integrated manual covering the mathematical architecture theory, the complete data pipeline equations, and the low-level (C++/Vulkan) code implementation specifications for Gemma 3N E4B.
+
 
 ---
 
