@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.1
+Type=Application
+Name=llm-lite
+Comment=Gemma 3N E4B · Local Inference
+Exec=bash -c "cd '/home/hwkim/Desktop/github/llm-lite' && bash launch.sh"
+Icon=/home/hwkim/Desktop/github/llm-lite/icon.svg
+Terminal=true
+Categories=Development;Science;
+StartupNotify=true

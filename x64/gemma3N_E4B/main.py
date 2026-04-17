@@ -10,6 +10,56 @@ import ctypes
 # see ram usage
 import os
 import psutil
+import time
+
+# ================================================================
+# ██████ Continuous Profiling Configuration ██████
+# ================================================================
+GLOBAL_PROFILE_DATA = []
+
+def generate_profile_html():
+    if not GLOBAL_PROFILE_DATA: return
+    html = [
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>",
+        "<style>",
+        "body{font-family: Arial, sans-serif; background:#121212; color:#e0e0e0; padding:20px;}",
+        "h2{color:#4fc3f7; text-align:center;}",
+        "table{border-collapse: collapse; margin:0 auto; font-size:14px;}",
+        "th,td{border: 1px solid #333; padding: 6px 12px; text-align: right;}",
+        "th{background: #1f1f1f; text-align: center; color:#b39ddb; position: sticky; top:0;}",
+        "tr:hover{filter: brightness(1.2);}",
+        ".prefill{background: #111a22;}",
+        ".decode{background: #182318;}",
+        ".hl{color: #ffd54f; font-weight:bold;}",
+        "</style></head><body>",
+        f"<h2>Gemma 3N Inference Operation Profiler</h2>",
+        "<table><tr><th>#</th><th>Stage</th>"
+    ]
+    keys = ["ffn", "o_proj", "qkv", "ple", "laurel", "altup_corr", "altup_pred", "qk_rope", "attn"]
+    for k in keys: html.append(f"<th>{k}</th>")
+    html.append("<th>TOTAL</th><th>Tokens/sec</th></tr>")
+    
+    total_time_sum = 0
+    for i, row in enumerate(GLOBAL_PROFILE_DATA):
+        stage = row.get("stage", "Unknown")
+        cls = "prefill" if stage == "Prefill" else "decode"
+        html.append(f"<tr class='{cls}'><td>{i}</td><td style='text-align:center;'>{stage}</td>")
+        
+        row_time = row.get("_total", 0)
+        total_time_sum += row_time
+        
+        for k in keys:
+            html.append(f"<td>{row.get(k, 0)*1000:.1f}</td>")
+        
+        tps = 1.0 / row_time if row_time > 0 else 0
+        html.append(f"<td class='hl'>{row_time*1000:.1f} ms</td><td class='hl'>{tps:.1f}</td></tr>")
+        
+    html.append(f"<tr><td colspan='{len(keys)+2}' style='text-align:center'><b>Cumulative Time: {(total_time_sum):.2f} sec</b></td><td colspan='2'></td></tr>")
+    html.append("</table></body></html>")
+    
+    with open("ProfilerReport.html", "w", encoding="utf-8") as f:
+        f.write("\n".join(html))
+    print("\n[Profiler] 📊 Saved detailed HTML report to 'ProfilerReport.html'")
 
 # ================================================================
 # ██████ Configuration ██████
@@ -176,24 +226,22 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
     y = unpacked_w_ple.reshape(35, 256) * math.sqrt(256.0)
     pli_all = (x_proj_normed + y) * (1.0 / math.sqrt(2.0))
 
-    # ── Lightweight profiler (fires once on first decode step) ──────────
+    # ── Continuous Profiler ──────────
     _PROF = {"altup_pred": 0.0, "qkv": 0.0, "qk_rope": 0.0,
              "attn": 0.0, "o_proj": 0.0, "laurel": 0.0,
              "ffn": 0.0, "altup_corr": 0.0, "ple": 0.0}
-    import time as _time
-    _profile_this = not getattr(forward_one_token, "_profiled", False)
 
     ping_pong = 0
     hw_prefetch(W["W_q"][0], ping_pong)
 
     for i in range(NUM_LAYERS):
-        _t0 = _time.perf_counter() if _profile_this else 0
+        _t0 = time.perf_counter()
 
         modalities  = get_router_modalities(xs[0], W["altup_rn"][i], W["altup_router"][i])
         coef_mat    = np.dot(W["altup_pred"][i], modalities).reshape(4, 4)
         xs_pred     = xs + np.dot(coef_mat, xs)
 
-        if _profile_this: _PROF["altup_pred"] += _time.perf_counter() - _t0; _t0 = _time.perf_counter()
+        _PROF["altup_pred"] += time.perf_counter() - _t0; _t0 = time.perf_counter()
 
         x                 = xs_pred[0].copy()
         inputs_normalized = rms_norm(x, W["input_ln"][i])
@@ -217,13 +265,13 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
         V = V.copy()
         ping_pong = next_buf
 
-        if _profile_this: _PROF["qkv"] += _time.perf_counter() - _t0; _t0 = _time.perf_counter()
+        _PROF["qkv"] += time.perf_counter() - _t0; _t0 = time.perf_counter()
 
         # --- QK Norm + RoPE (fused C++) ---
         theta = 1_000_000.0 if (i % 5 == 4) else 10_000.0
         Q, K = CPU_CORE.cpu_qk_norm_rope_fused(Q, K, W["gamma_q"][i], W["gamma_k"][i], pos, theta)
 
-        if _profile_this: _PROF["qk_rope"] += _time.perf_counter() - _t0; _t0 = _time.perf_counter()
+        _PROF["qk_rope"] += time.perf_counter() - _t0; _t0 = time.perf_counter()
 
         if i < 20:
             K_cache[i, pos, :] = K
@@ -241,7 +289,7 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
         # --- Attention (fused C++ kernel: FP16 KV cache → FP32 output) ---
         attn_raw = CPU_CORE.cpu_gqa_fused(Q, target_k_cache, target_v_cache)
 
-        if _profile_this: _PROF["attn"] += _time.perf_counter() - _t0; _t0 = _time.perf_counter()
+        _PROF["attn"] += time.perf_counter() - _t0; _t0 = time.perf_counter()
 
         # --- O projection ---
         curr_buf = ping_pong; next_buf = 1 - ping_pong
@@ -250,7 +298,7 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
         attn_output = attn_output.copy()
         ping_pong = next_buf
 
-        if _profile_this: _PROF["o_proj"] += _time.perf_counter() - _t0; _t0 = _time.perf_counter()
+        _PROF["o_proj"] += time.perf_counter() - _t0; _t0 = time.perf_counter()
 
         laurel_x          = hw_matmul(inputs_normalized, W["laurel_left"][i])
         laurel_x          = hw_matmul(laurel_x, W["laurel_right"][i])
@@ -260,7 +308,7 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
         attn_output += x
         attn_output  = (attn_output + laurel_out_normed) * (1.0 / math.sqrt(2.0))
 
-        if _profile_this: _PROF["laurel"] += _time.perf_counter() - _t0; _t0 = _time.perf_counter()
+        _PROF["laurel"] += time.perf_counter() - _t0; _t0 = time.perf_counter()
 
         x_n2 = rms_norm(attn_output, W["pre_ffn_ln"][i])
 
@@ -296,7 +344,7 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
         outputs  = rms_norm(mlp_out, W["post_ffn_ln"][i])
         outputs += attn_output
 
-        if _profile_this: _PROF["ffn"] += _time.perf_counter() - _t0; _t0 = _time.perf_counter()
+        _PROF["ffn"] += time.perf_counter() - _t0; _t0 = time.perf_counter()
 
         activated  = outputs * W["altup_scale"][i]
         innovation = activated - xs_pred[0]
@@ -304,7 +352,7 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
         corr_coefs = np.dot(W["altup_corr"][i], mod_corr) + 1.0
         xs_new = xs_pred + corr_coefs[:, np.newaxis] * innovation
 
-        if _profile_this: _PROF["altup_corr"] += _time.perf_counter() - _t0; _t0 = _time.perf_counter()
+        _PROF["altup_corr"] += time.perf_counter() - _t0; _t0 = time.perf_counter()
 
         pli      = pli_all[i]
         gate_ple = CPU_CORE.gelu(hw_matmul(activated, W["ple_gate"][i])) * pli
@@ -312,15 +360,10 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
         xs_new[1:] += mapped
         xs = xs_new
 
-        if _profile_this: _PROF["ple"] += _time.perf_counter() - _t0
+        _PROF["ple"] += time.perf_counter() - _t0
 
-    if _profile_this:
-        forward_one_token._profiled = True
-        total = sum(_PROF.values())
-        print("\n\n[Profiler] Per-section time (35 layers total):")
-        for k, v in sorted(_PROF.items(), key=lambda x: -x[1]):
-            print(f"  {k:<15} {v*1000:7.1f} ms  ({v/total*100:4.1f}%)")
-        print(f"  {'TOTAL':<15} {total*1000:7.1f} ms")
+    _PROF["_total"] = sum(_PROF.values())
+    GLOBAL_PROFILE_DATA.append(_PROF)
 
     return xs
 
@@ -448,9 +491,12 @@ def main():
             print("Model: ", end="", flush=True)
             
             xs = None
+            GLOBAL_PROFILE_DATA.clear()
+            
             for token_id in input_tokens:
                 xs = forward_one_token(token_id, cur_pos, W, W_embed, W_ple_packed, W_ple_scale, norm_ple,
                                        W_ple_proj, altup_projs, K_cache, V_cache)
+                GLOBAL_PROFILE_DATA[-1]["stage"] = "Prefill"
                 cur_pos += 1
             
             print_ram_usage("4. After Prefill")
@@ -474,9 +520,11 @@ def main():
 
                 xs = forward_one_token(next_token, cur_pos, W, W_embed, W_ple_packed, W_ple_scale,
                                        norm_ple, W_ple_proj, altup_projs, K_cache, V_cache)
+                GLOBAL_PROFILE_DATA[-1]["stage"] = "Decode"
                 cur_pos += 1
                 
             print()
+            generate_profile_html()
             gc.collect()
             
         except KeyboardInterrupt:
