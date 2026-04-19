@@ -242,7 +242,7 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 
-.theme-btn {
+.theme-btn, .settings-btn {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -258,10 +258,275 @@ input[type="range"]::-webkit-slider-thumb {
   width: 100%;
 }
 
-.theme-btn:hover {
+.theme-btn:hover, .settings-btn:hover {
   border-color: var(--border-active);
   color: var(--text);
   background: var(--bg-hover);
+}
+
+.settings-btn { color: var(--accent); }
+
+.param-hint {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── GPU warning banner ── */
+.gpu-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, rgba(245,158,11,0.12), rgba(139,92,246,0.08));
+  border-bottom: 1px solid rgba(245,158,11,0.35);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.gpu-banner.active { display: flex; }
+.gpu-banner b { color: #fbbf24; }
+.gpu-banner-close {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 16px; padding: 0 4px;
+}
+.gpu-banner-close:hover { color: var(--text); }
+
+/* ── Modal ── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  backdrop-filter: blur(3px);
+}
+.modal-backdrop.active { display: flex; }
+
+.modal {
+  width: min(760px, 92vw);
+  max-height: 82vh;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title { font-weight: 600; font-size: 14px; }
+.modal-close {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; font-size: 18px;
+}
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.modal-tab {
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+}
+.modal-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+}
+.modal-pane { display: none; }
+.modal-pane.active { display: block; }
+
+/* Model cards */
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.model-card-tile {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.model-card-tile .name { font-size: 12.5px; font-weight: 600; }
+.model-card-tile .meta { font-size: 11px; color: var(--text-muted); }
+.model-card-tile .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.btn {
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 11.5px;
+  font-family: inherit;
+}
+.btn:hover { color: var(--text); border-color: var(--border-active); }
+.btn.danger { color: #f87171; }
+.btn.danger:hover { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.1); }
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #fff;
+  border-color: transparent;
+}
+.btn.primary:hover { opacity: 0.9; }
+
+.download-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.download-row input, .download-row select {
+  padding: 6px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+.download-row input { flex: 1; min-width: 180px; }
+
+.progress-line {
+  font-size: 11.5px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-2);
+  padding: 6px 0;
+}
+
+/* ── About tab link buttons ── */
+.about-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 18px 0 12px;
+}
+.about-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text) !important;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.about-btn:hover {
+  border-color: var(--border-active);
+  background: var(--accent-glow);
+  transform: translateY(-1px);
+  color: var(--text) !important;
+  text-decoration: none;
+}
+.about-btn-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #fff;
+}
+.about-btn-text { line-height: 1.4; }
+.about-btn-text .l1 {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.about-btn-text .l2 { font-size: 13px; font-weight: 600; }
+
+.about-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.7;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Models tab sections ── */
+.models-section {
+  margin-bottom: 22px;
+}
+.models-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.models-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.models-section-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.quantize-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+.quantize-row select {
+  padding: 6px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  flex: 1;
+  min-width: 140px;
 }
 
 /* ── Main Chat Area ── */
@@ -557,6 +822,12 @@ textarea#userInput::placeholder { color: var(--text-muted); }
 
 .send-btn svg { width: 16px; height: 16px; }
 
+.send-btn.stop {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 2px 8px rgba(239,68,68,0.35);
+}
+.send-btn.stop:hover { opacity: 1; transform: scale(1.06); }
+
 .input-hint {
   margin-top: 8px;
   font-size: 11px;
@@ -680,10 +951,19 @@ textarea#userInput::placeholder { color: var(--text-muted); }
       <div class="param-label">Max tokens <span class="param-val" id="maxTokVal">512</span></div>
       <input type="range" id="maxTokSlider" min="64" max="2048" step="64" value="512">
     </div>
+    <div>
+      <div class="param-label">KV cache <span class="param-val" id="kvVal">512</span></div>
+      <input type="range" id="kvSlider" min="128" max="2048" step="128" value="512">
+      <div class="param-hint" id="kvHint">Roughly 1.3 A4 pages of text</div>
+    </div>
   </div>
 
   <div class="params-section">
     <div class="sidebar-divider"></div>
+    <button class="settings-btn" id="settingsBtn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings · Models</span>
+    </button>
     <button class="theme-btn" id="themeBtn">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       <span id="themeBtnLabel">Light mode</span>
@@ -693,8 +973,14 @@ textarea#userInput::placeholder { color: var(--text-muted); }
 
 <!-- ── Main ── -->
 <div class="main">
+  <div class="gpu-banner" id="gpuBanner">
+    <div>
+      <b>⚠</b>&nbsp; <span id="gpuBannerText">Older iGPU detected — FP16 may outperform INT quantization.</span>
+    </div>
+    <button class="gpu-banner-close" id="gpuBannerClose" title="Dismiss">✕</button>
+  </div>
   <div class="topbar">
-    <div class="topbar-title">Chat</div>
+    <div class="topbar-title">Chat <span style="font-size:11px;color:var(--text-muted);margin-left:8px" id="topbarMode"></span></div>
     <div class="ctx-badge" id="ctxBadge">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       ctx: <span id="ctxPos">0</span>
@@ -725,8 +1011,11 @@ textarea#userInput::placeholder { color: var(--text-muted); }
     <div class="input-box">
       <textarea id="userInput" rows="1" placeholder="Message Gemma 3N..." autocomplete="off"></textarea>
       <button class="send-btn" id="sendBtn" title="Send (Enter)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg id="sendIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+        <svg id="stopIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+          <rect x="6" y="6" width="12" height="12" rx="2"/>
         </svg>
       </button>
     </div>
@@ -737,7 +1026,269 @@ textarea#userInput::placeholder { color: var(--text-muted); }
   </div>
 </div>
 
+<!-- ── Settings Modal ── -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Settings</div>
+      <button class="modal-close" id="settingsClose">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-pane="modelsPane">Models</button>
+      <button class="modal-tab" data-pane="genPane">Generation</button>
+      <button class="modal-tab" data-pane="aboutPane">About</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="modal-pane active" id="modelsPane">
+
+        <div class="models-section">
+          <div class="models-section-head">
+            <div class="models-section-title" data-i18n="refTitle">1. Reference Models (original FP)</div>
+            <div class="models-section-note" data-i18n="refNote">Original safetensors fetched from HuggingFace + any legacy local folder</div>
+          </div>
+          <div class="model-grid" id="refGrid"></div>
+          <div class="download-row">
+            <input type="text" id="refHfId" value="google/gemma-3n-E4B-it" spellcheck="false" placeholder="HuggingFace repo id (e.g. google/gemma-3n-E4B-it)">
+            <button class="btn primary" id="refDownload" data-i18n="dlRef">Download reference</button>
+          </div>
+          <div class="download-row" style="margin-top:6px">
+            <input type="password" id="refHfToken" spellcheck="false" placeholder="HF token (optional — for gated models like Gemma)">
+            <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener"
+               style="font-size:11px;color:var(--accent);text-decoration:none;padding:6px 10px" data-i18n="getToken">Get a token →</a>
+          </div>
+          <div class="progress-line" id="refProgress"></div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5" data-i18n-html="gatedHint">
+            Gemma is a gated model. Accept the license at <a href="https://huggingface.co/google/gemma-3n-E4B-it" target="_blank" rel="noopener" style="color:var(--accent)">hf.co/google/gemma-3n-E4B-it</a>, generate a token, and paste it above.
+          </div>
+        </div>
+
+        <div class="models-section">
+          <div class="models-section-head">
+            <div class="models-section-title" data-i18n="qTitle">2. Quantize</div>
+            <div class="models-section-note" data-i18n="qNote">Convert a reference to the chosen precision</div>
+          </div>
+          <div class="quantize-row">
+            <select id="qSrcRef"><option value="" data-i18n="noRefOpt">(no reference downloaded)</option></select>
+            <select id="qMode">
+              <option value="int4">INT4 (Vulkan)</option>
+              <option value="int8">INT8</option>
+              <option value="fp16">FP16</option>
+              <option value="fp32">FP32</option>
+            </select>
+            <button class="btn primary" id="qStart" data-i18n="quantizeBtn">Quantize</button>
+          </div>
+          <div class="progress-line" id="qProgress"></div>
+        </div>
+
+        <div class="models-section">
+          <div class="models-section-head">
+            <div class="models-section-title" data-i18n="instTitle">3. Installed Variants</div>
+            <div class="models-section-note" data-i18n="instNote">Quantized weights consumed by the runtime loader</div>
+          </div>
+          <div class="model-grid" id="modelGrid"></div>
+        </div>
+
+      </div>
+
+      <div class="modal-pane" id="genPane">
+        <div style="display:grid;gap:16px;">
+          <div>
+            <div class="param-label">Temperature <span class="param-val" id="tempVal2">0.65</span></div>
+            <input type="range" id="tempSlider2" min="0.1" max="1.5" step="0.05" value="0.65">
+            <div class="param-hint" data-i18n="tempHint">Higher → more creative; lower → more deterministic.</div>
+          </div>
+          <div>
+            <div class="param-label">Top-p <span class="param-val" id="topPVal2">0.90</span></div>
+            <input type="range" id="topPSlider2" min="0.5" max="1.0" step="0.01" value="0.90">
+          </div>
+          <div>
+            <div class="param-label">Max new tokens <span class="param-val" id="maxTokVal2">512</span></div>
+            <input type="range" id="maxTokSlider2" min="64" max="2048" step="64" value="512">
+          </div>
+          <div>
+            <div class="param-label">KV cache size <span class="param-val" id="kvVal2">512</span></div>
+            <input type="range" id="kvSlider2" min="128" max="2048" step="128" value="512">
+            <div class="param-hint" id="kvHint2">Roughly 1.3 A4 pages of text</div>
+          </div>
+        </div>
+
+        <div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--border)">
+          <div class="models-section-title" data-i18n="perfSection" style="margin-bottom:10px">PERFORMANCE (applied on next model reload)</div>
+
+          <label style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;cursor:pointer">
+            <input type="checkbox" id="cacheEmbToggle" style="margin-top:3px">
+            <div>
+              <div style="font-size:13px;font-weight:500" data-i18n="cacheEmbTitle">Cache embeddings in RAM</div>
+              <div class="param-hint" data-i18n="cacheEmbHint">Copies the embedding + per-layer-embedding tables out of MMAP into plain RAM. Speeds up every token by ~5–15% at the cost of ~1.4 GB extra RAM. No effect on layer weights (still MMAP).</div>
+            </div>
+          </label>
+
+          <label style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;cursor:pointer">
+            <input type="checkbox" id="specDecodeToggle" style="margin-top:3px">
+            <div>
+              <div style="font-size:13px;font-weight:500" data-i18n="specTitle">Speculative decoding (experimental)</div>
+              <div class="param-hint" data-i18n="specHint">Layer-skip self-speculative draft (first N of 35 layers) + full-model verify. Without LayerSkip training the acceptance rate is usually low (≈5–20%); a real E2B MatFormer draft is tracked in docs/Speculative_Decoding_Research.md.</div>
+            </div>
+          </label>
+
+          <div style="padding:6px 0 10px 28px">
+            <div class="param-label" style="font-size:11px">γ (draft lookahead) <span class="param-val" id="gammaVal">4</span></div>
+            <input type="range" id="gammaSlider" min="2" max="8" step="1" value="4" style="max-width:220px">
+          </div>
+
+          <button class="btn primary" id="applyEngineCfg" style="margin-top:6px" data-i18n="applyReload">Apply &amp; reload model</button>
+          <div class="progress-line" id="engineCfgStatus"></div>
+        </div>
+      </div>
+
+      <div class="modal-pane" id="aboutPane">
+        <div style="font-size:13px;line-height:1.65;color:var(--text-secondary)">
+          <p><b style="color:var(--text)">llm-lite</b> — <span data-i18n="aboutTagline">local inference engine for Gemma 3N E4B.</span></p>
+          <p><span data-i18n="backendLbl">Backend</span>: <span id="aboutStatus" style="color:var(--text)">checking…</span></p>
+          <p>GPU: <span id="aboutGpu" style="color:var(--text)">checking…</span></p>
+        </div>
+
+        <div style="margin:18px 0 8px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:12px;color:var(--text-secondary)" data-i18n="langLbl">Language:</span>
+          <select id="langSelect" style="padding:5px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px">
+            <option value="en">English</option>
+            <option value="ko">한국어</option>
+          </select>
+        </div>
+
+        <div class="about-buttons">
+          <a class="about-btn" href="https://github.com/hwkim-dev/llm-lite" target="_blank" rel="noopener">
+            <div class="about-btn-icon">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            </div>
+            <div class="about-btn-text">
+              <div class="l1">Visit on GitHub</div>
+              <div class="l2">hwkim-dev / llm-lite</div>
+            </div>
+          </a>
+          <a class="about-btn" href="https://hwkim-dev.github.io/hwkim-dev/blog/tags/llm-lite" target="_blank" rel="noopener">
+            <div class="about-btn-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <div class="about-btn-text">
+              <div class="l1">Read the blog</div>
+              <div class="l2">llm-lite tag</div>
+            </div>
+          </a>
+        </div>
+
+        <div class="about-footer">
+          © 2026 hwkim-dev — Licensed under the <a href="https://github.com/hwkim-dev/llm-lite/blob/main/LICENSE" target="_blank" rel="noopener" style="color:var(--accent)">Apache License 2.0</a>.
+          <br/>
+          Built on NumPy · Flask · Vulkan · huggingface_hub.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <script>
+/* ── i18n dictionary ─────────────────────────────────── */
+const T = {
+  en: {
+    tempHint: 'Higher → more creative; lower → more deterministic.',
+    perfSection: 'PERFORMANCE (applied on next model reload)',
+    cacheEmbTitle: 'Cache embeddings in RAM',
+    cacheEmbHint: 'Copies the embedding + per-layer-embedding tables out of MMAP into plain RAM. Speeds up every token by ~5–15% at the cost of ~1.4 GB extra RAM. No effect on layer weights (still MMAP).',
+    specTitle: 'Speculative decoding (experimental)',
+    specHint: 'Layer-skip self-speculative draft (first N of 35 layers) + full-model verify. Without LayerSkip training the acceptance rate is usually low (≈5–20%); a real E2B MatFormer draft is tracked in docs/Speculative_Decoding_Research.md.',
+    applyReload: 'Apply & reload model',
+    aboutTagline: 'local inference engine for Gemma 3N E4B.',
+    backendLbl: 'Backend',
+    langLbl: 'Language:',
+    refTitle: '1. Reference Models (original FP)',
+    refNote: 'Original safetensors fetched from HuggingFace + any legacy local folder',
+    dlRef: 'Download reference',
+    getToken: 'Get a token →',
+    gatedHint: 'Gemma is a gated model. Accept the license at <a href="https://huggingface.co/google/gemma-3n-E4B-it" target="_blank" rel="noopener" style="color:var(--accent)">hf.co/google/gemma-3n-E4B-it</a>, generate a token, and paste it above.',
+    qTitle: '2. Quantize',
+    qNote: 'Convert a reference to the chosen precision',
+    noRefOpt: '(no reference downloaded)',
+    quantizeBtn: 'Quantize',
+    instTitle: '3. Installed Variants',
+    instNote: 'Quantized weights consumed by the runtime loader',
+    readyTitle: 'Gemma 3N is ready',
+    readySub: 'Running entirely on your hardware — no internet required.',
+    kvPages: (n) => `Roughly ${n} A4 pages of text`,
+    noVariants: 'No variants installed. Download a reference above, then quantize it.',
+    noRefs: 'No reference models downloaded yet.',
+    confirmDelete: (n) => `Delete ${n}? This cannot be undone.`,
+    confirmDeleteRef: (n) => `Delete reference ${n}? This cannot be undone.`,
+    deleteFailed: 'Delete failed',
+    loadFailed: 'Failed to load',
+    gpuWarn: (dev) => `<b>${dev}</b> detected — older iGPUs often run FP16 faster than INT quantization.`,
+    connError: 'Connection error. Is the server running?',
+    requesting: 'Requesting…',
+    configSaved: 'Saved. Reloading model…',
+    configReloaded: 'Model reloaded.',
+    configFailed: 'Config save failed',
+  },
+  ko: {
+    tempHint: '높을수록 창의적, 낮을수록 결정론적.',
+    perfSection: '성능 옵션 (다음 모델 리로드 시 적용)',
+    cacheEmbTitle: 'Embedding 테이블을 RAM 에 캐시',
+    cacheEmbHint: 'embedding + per-layer-embedding 테이블을 MMAP 에서 RAM 으로 복사. 토큰당 5~15% 빨라지지만 RAM 약 1.4GB 추가. 레이어 가중치는 그대로 MMAP.',
+    specTitle: 'Speculative decoding (실험적)',
+    specHint: 'Layer-skip self-speculative draft (35 레이어 중 앞 N개) + full-model verify. LayerSkip 훈련 없이는 수용률이 낮음 (5~20%); 진짜 E2B MatFormer draft 는 docs/Speculative_Decoding_Research.md 참고.',
+    applyReload: '적용 & 모델 재로드',
+    aboutTagline: 'Gemma 3N E4B 로컬 추론 엔진',
+    backendLbl: '백엔드',
+    langLbl: '언어:',
+    refTitle: '1. Reference Models (원본 FP)',
+    refNote: 'HuggingFace 에서 받은 원본 safetensors + 로컬 폴더',
+    dlRef: 'Reference 다운로드',
+    getToken: '토큰 발급 →',
+    gatedHint: 'Gemma 는 gated 모델입니다. <a href="https://huggingface.co/google/gemma-3n-E4B-it" target="_blank" rel="noopener" style="color:var(--accent)">hf.co/google/gemma-3n-E4B-it</a> 에서 라이선스 수락 → 토큰 발급 후 위에 붙여넣기.',
+    qTitle: '2. 양자화',
+    qNote: 'reference → 선택한 precision 으로 변환',
+    noRefOpt: '(다운로드된 reference 없음)',
+    quantizeBtn: '양자화',
+    instTitle: '3. 설치된 Variants',
+    instNote: 'runtime 로더가 사용하는 양자화된 가중치',
+    readyTitle: 'Gemma 3N 준비 완료',
+    readySub: '인터넷 없이 로컬 하드웨어에서 완전히 실행됩니다.',
+    kvPages: (n) => `약 A4 ${n}장 분량입니다`,
+    noVariants: '설치된 variant 가 없습니다. 위에서 reference 를 다운로드한 뒤 양자화하세요.',
+    noRefs: '다운로드된 reference 가 없습니다.',
+    confirmDelete: (n) => `정말 ${n} 를 삭제합니까?`,
+    confirmDeleteRef: (n) => `정말 reference ${n} 를 삭제합니까?`,
+    deleteFailed: '삭제 실패',
+    loadFailed: '로드 실패',
+    gpuWarn: (dev) => `<b>${dev}</b> 감지 — 구형 iGPU 는 FP16 이 INT 양자화보다 빠를 수 있습니다.`,
+    connError: '연결 오류. 서버가 실행 중인가요?',
+    requesting: '요청 중…',
+    configSaved: '저장됨. 모델 리로드 중…',
+    configReloaded: '모델 리로드 완료.',
+    configFailed: '설정 저장 실패',
+  },
+};
+
+let lang = localStorage.getItem('llm_lite_lang') || 'en';
+function t() { return T[lang]; }
+
+function applyLanguage() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (t()[k] !== undefined) el.textContent = t()[k];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const k = el.getAttribute('data-i18n-html');
+    if (t()[k] !== undefined) el.innerHTML = t()[k];
+  });
+  // Empty-state elements (may exist or not depending on state)
+  const et = document.querySelector('.empty-title');
+  const es = document.querySelector('.empty-sub');
+  if (et) et.textContent = t().readyTitle;
+  if (es) es.textContent = t().readySub;
+}
+
 marked.setOptions({ breaks: true, gfm: true });
 
 const renderer = new marked.Renderer();
@@ -790,6 +1341,7 @@ themeBtn.addEventListener('click', () => {
 function bindSlider(id, valId, decimals=2) {
   const slider = document.getElementById(id);
   const label = document.getElementById(valId);
+  if (!slider || !label) return;
   label.textContent = parseFloat(slider.value).toFixed(decimals);
   slider.addEventListener('input', () => {
     label.textContent = parseFloat(slider.value).toFixed(decimals);
@@ -798,6 +1350,312 @@ function bindSlider(id, valId, decimals=2) {
 bindSlider('tempSlider', 'tempVal', 2);
 bindSlider('topPSlider', 'topPVal', 2);
 bindSlider('maxTokSlider', 'maxTokVal', 0);
+
+// Mirror between sidebar + modal sliders.
+function mirror(aId, bId) {
+  const a = document.getElementById(aId), b = document.getElementById(bId);
+  if (!a || !b) return;
+  a.addEventListener('input', () => { b.value = a.value; b.dispatchEvent(new Event('input')); });
+  b.addEventListener('input', () => { a.value = b.value; a.dispatchEvent(new Event('input')); });
+}
+bindSlider('tempSlider2', 'tempVal2', 2);
+bindSlider('topPSlider2', 'topPVal2', 2);
+bindSlider('maxTokSlider2', 'maxTokVal2', 0);
+mirror('tempSlider', 'tempSlider2');
+mirror('topPSlider', 'topPSlider2');
+mirror('maxTokSlider', 'maxTokSlider2');
+
+// KV slider with A4 page estimate.  Rough rule: ~400 tokens ≈ 1 A4 page.
+function kvPages(tokens) {
+  const pages = Math.round((tokens / 400) * 10) / 10;
+  return t().kvPages(pages);
+}
+function bindKv(sliderId, valId, hintId) {
+  const s = document.getElementById(sliderId);
+  const v = document.getElementById(valId);
+  const h = document.getElementById(hintId);
+  if (!s) return;
+  const update = () => {
+    v.textContent = s.value;
+    h.textContent = kvPages(parseInt(s.value));
+  };
+  update();
+  s.addEventListener('input', update);
+  s.addEventListener('change', () => {
+    fetch('/api/config/kv_cache', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({max_tokens: parseInt(s.value)}),
+    }).catch(() => {});
+  });
+}
+bindKv('kvSlider', 'kvVal', 'kvHint');
+bindKv('kvSlider2', 'kvVal2', 'kvHint2');
+mirror('kvSlider', 'kvSlider2');
+
+// ── GPU banner ──
+fetch('/api/gpu-info').then(r => r.json()).then(info => {
+  document.getElementById('aboutGpu').textContent = `${info.device} (${info.vendor})`;
+  if (info.fp16_faster) {
+    const banner = document.getElementById('gpuBanner');
+    const text = document.getElementById('gpuBannerText');
+    text.innerHTML = t().gpuWarn(info.device);
+    if (!localStorage.getItem('gpuBannerDismissed')) {
+      banner.classList.add('active');
+    }
+  }
+}).catch(() => {});
+document.getElementById('gpuBannerClose').addEventListener('click', () => {
+  document.getElementById('gpuBanner').classList.remove('active');
+  localStorage.setItem('gpuBannerDismissed', '1');
+});
+
+// ── Settings modal ──
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  settingsModal.classList.add('active');
+  refreshRefList();
+  refreshModelList();
+});
+document.getElementById('settingsClose').addEventListener('click', () => {
+  settingsModal.classList.remove('active');
+});
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) settingsModal.classList.remove('active');
+});
+document.querySelectorAll('.modal-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.modal-pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.pane).classList.add('active');
+  });
+});
+
+function fmtSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024**2) return `${(bytes/1024).toFixed(1)} KB`;
+  if (bytes < 1024**3) return `${(bytes/1024/1024).toFixed(1)} MB`;
+  return `${(bytes/1024/1024/1024).toFixed(2)} GB`;
+}
+function modeChipColor(m) {
+  return { int4: 'chip-purple', int8: 'chip-cyan', fp16: 'chip-green', fp32: 'chip-green' }[m] || 'chip-purple';
+}
+
+async function refreshModelList() {
+  const grid = document.getElementById('modelGrid');
+  grid.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Loading…</div>';
+  try {
+    const r = await fetch('/api/models/list');
+    const data = await r.json();
+    if (!data.variants.length) {
+      grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted)">${t().noVariants}</div>`;
+      return;
+    }
+    grid.innerHTML = '';
+    data.variants.forEach(v => {
+      const tile = document.createElement('div');
+      tile.className = 'model-card-tile';
+      tile.innerHTML = `
+        <div class="row">
+          <div class="name">${v.name}</div>
+          <span class="model-chip ${modeChipColor(v.mode)}">${v.mode.toUpperCase()}</span>
+        </div>
+        <div class="meta">${fmtSize(v.size_bytes)} · ${v.created || 'legacy'}</div>
+        <div class="row">
+          <div class="meta" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px" title="${v.path}">${v.path}</div>
+          <button class="btn danger" data-delete="${v.name}">🗑 Delete</button>
+        </div>
+      `;
+      grid.appendChild(tile);
+    });
+    grid.querySelectorAll('[data-delete]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.dataset.delete;
+        if (!confirm(t().confirmDelete(name))) return;
+        const res = await fetch('/api/models/delete', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({name}),
+        });
+        const body = await res.json();
+        if (body.error) alert(t().deleteFailed + ': ' + body.error);
+        refreshModelList();
+      });
+    });
+  } catch (e) {
+    grid.innerHTML = `<div style="font-size:12px;color:#f87171">${t().loadFailed}: ${e}</div>`;
+  }
+}
+
+async function refreshRefList() {
+  const grid = document.getElementById('refGrid');
+  const sel = document.getElementById('qSrcRef');
+  grid.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">Loading…</div>';
+  try {
+    const r = await fetch('/api/models/refs');
+    const data = await r.json();
+    sel.innerHTML = '';
+    if (!data.refs.length) {
+      grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted)">${t().noRefs}</div>`;
+      sel.innerHTML = `<option value="">${t().noRefOpt}</option>`;
+      return;
+    }
+    grid.innerHTML = '';
+    data.refs.forEach(v => {
+      const tile = document.createElement('div');
+      tile.className = 'model-card-tile';
+      const chip = v.origin === 'legacy' ? 'chip-cyan' : 'chip-green';
+      const chipLabel = v.origin === 'legacy' ? 'LOCAL' : 'HF';
+      const deleteBtn = v.deletable
+        ? `<button class="btn danger" data-refdelete="${v.name}">🗑 Delete</button>`
+        : `<span class="meta" title="legacy — delete via shell">read-only</span>`;
+      tile.innerHTML = `
+        <div class="row">
+          <div class="name">${v.repo_id}</div>
+          <span class="model-chip ${chip}">${chipLabel}</span>
+        </div>
+        <div class="meta">${fmtSize(v.size_bytes)} · ${v.num_shards} shards</div>
+        <div class="row">
+          <div class="meta" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px" title="${v.path}">${v.path}</div>
+          ${deleteBtn}
+        </div>
+      `;
+      grid.appendChild(tile);
+
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = v.repo_id + (v.origin === 'legacy' ? '  [local]' : '');
+      sel.appendChild(opt);
+    });
+    grid.querySelectorAll('[data-refdelete]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.dataset.refdelete;
+        if (!confirm(t().confirmDeleteRef(name))) return;
+        const res = await fetch('/api/models/refs/delete', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({name}),
+        });
+        const body = await res.json();
+        if (body.error) alert(t().deleteFailed + ': ' + body.error);
+        refreshRefList();
+      });
+    });
+  } catch (e) {
+    grid.innerHTML = `<div style="font-size:12px;color:#f87171">${t().loadFailed}: ${e}</div>`;
+  }
+}
+
+function streamProgress(progressEl, jobId, onDone) {
+  const es = new EventSource('/api/models/download_progress?job_id=' + jobId);
+  es.onmessage = (e) => {
+    const s = JSON.parse(e.data);
+    const msgHtml = (s.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                    .replace(/https?:\/\/\S+/g, m => `<a href="${m}" target="_blank" rel="noopener" style="color:var(--accent)">${m}</a>`)
+                    .replace(/\n/g, '<br>');
+    progressEl.style.whiteSpace = 'pre-line';
+    progressEl.innerHTML = `<b>[${s.status}]</b><br>${msgHtml}`;
+    if (s.status === 'error') progressEl.style.color = '#f87171';
+    else progressEl.style.color = 'var(--accent-2)';
+    if (s.status === 'done' || s.status === 'error') {
+      es.close();
+      if (onDone) onDone(s);
+    }
+  };
+}
+
+document.getElementById('refDownload').addEventListener('click', async () => {
+  const hf_id = document.getElementById('refHfId').value.trim();
+  const hf_token = document.getElementById('refHfToken').value.trim();
+  const progress = document.getElementById('refProgress');
+  progress.style.color = 'var(--accent-2)';
+  progress.innerHTML = 'Requesting download…';
+  const r = await fetch('/api/models/refs/download', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({hf_id, hf_token}),
+  });
+  const {job_id, error} = await r.json();
+  if (error) { progress.style.color = '#f87171'; progress.textContent = 'error: ' + error; return; }
+  streamProgress(progress, job_id, () => refreshRefList());
+});
+
+document.getElementById('qStart').addEventListener('click', async () => {
+  const ref = document.getElementById('qSrcRef').value;
+  const mode = document.getElementById('qMode').value;
+  const progress = document.getElementById('qProgress');
+  if (!ref) { progress.textContent = 'error: no reference selected'; return; }
+  progress.textContent = t().requesting;
+  const r = await fetch('/api/models/quantize', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ref, mode}),
+  });
+  const {job_id, error} = await r.json();
+  if (error) { progress.textContent = 'error: ' + error; return; }
+  streamProgress(progress, job_id, () => refreshModelList());
+});
+
+/* ── Language selector ── */
+const langSelect = document.getElementById('langSelect');
+langSelect.value = lang;
+langSelect.addEventListener('change', () => {
+  lang = langSelect.value;
+  localStorage.setItem('llm_lite_lang', lang);
+  applyLanguage();
+  // also refresh dynamic text (KV hint etc.)
+  const kv = document.getElementById('kvSlider');
+  if (kv) kv.dispatchEvent(new Event('input'));
+});
+applyLanguage();
+
+/* ── Engine config (embeddings cache, spec decoding) ── */
+const cacheEmbToggle    = document.getElementById('cacheEmbToggle');
+const specDecodeToggle  = document.getElementById('specDecodeToggle');
+const gammaSlider       = document.getElementById('gammaSlider');
+const gammaVal          = document.getElementById('gammaVal');
+const applyEngineCfgBtn = document.getElementById('applyEngineCfg');
+const engineCfgStatus   = document.getElementById('engineCfgStatus');
+
+gammaSlider.addEventListener('input', () => { gammaVal.textContent = gammaSlider.value; });
+
+// Load current config on open
+fetch('/api/config/engine').then(r => r.json()).then(data => {
+  const c = data.config || {};
+  cacheEmbToggle.checked   = !!c.cache_embeddings;
+  specDecodeToggle.checked = !!c.use_spec_decode;
+  gammaSlider.value        = c.spec_gamma || 4;
+  gammaVal.textContent     = gammaSlider.value;
+}).catch(() => {});
+
+applyEngineCfgBtn.addEventListener('click', async () => {
+  engineCfgStatus.style.color = 'var(--accent-2)';
+  engineCfgStatus.textContent = t().configSaved;
+  try {
+    await fetch('/api/config/engine', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        cache_embeddings: cacheEmbToggle.checked,
+        use_spec_decode:  specDecodeToggle.checked,
+        spec_gamma:       parseInt(gammaSlider.value),
+      }),
+    });
+    const r = await fetch('/api/config/reload_model', {method: 'POST'});
+    const body = await r.json();
+    if (body.error) {
+      engineCfgStatus.style.color = '#f87171';
+      engineCfgStatus.textContent = body.error;
+    } else {
+      engineCfgStatus.textContent = t().configReloaded;
+      pollStatus();
+    }
+  } catch (e) {
+    engineCfgStatus.style.color = '#f87171';
+    engineCfgStatus.textContent = t().configFailed + ': ' + e;
+  }
+});
 
 // ── Status polling ──
 async function pollStatus() {
@@ -821,6 +1679,9 @@ async function pollStatus() {
       txt.textContent = 'Not started';
     }
     document.getElementById('ctxPos').textContent = s.context_pos || 0;
+    document.getElementById('topbarMode').textContent = `W:${s.weight_mode} · ${s.accel}`;
+    document.getElementById('aboutStatus').textContent =
+      s.initialized ? `Ready (W:${s.weight_mode}, accel:${s.accel})` : (s.initializing ? 'initializing' : (s.error || 'idle'));
   } catch {
     setTimeout(pollStatus, 3000);
   }
@@ -895,20 +1756,41 @@ document.getElementById('newChatBtn').addEventListener('click', async () => {
   document.getElementById('ctxPos').textContent = '0';
 });
 
-// ── Send ──
+// ── Send / Stop ──
 const sendBtn = document.getElementById('sendBtn');
+const sendIcon = document.getElementById('sendIcon');
+const stopIcon = document.getElementById('stopIcon');
 const typingDots = document.getElementById('typingDots');
+
+function setGenerating(on) {
+  isGenerating = on;
+  if (on) {
+    sendBtn.classList.add('stop');
+    sendBtn.title = 'Stop (click to cancel generation)';
+    sendIcon.style.display = 'none';
+    stopIcon.style.display = 'block';
+  } else {
+    sendBtn.classList.remove('stop');
+    sendBtn.title = 'Send (Enter)';
+    sendIcon.style.display = 'block';
+    stopIcon.style.display = 'none';
+  }
+}
+
+async function stopGeneration() {
+  try { await fetch('/api/chat/stop', {method: 'POST'}); } catch {}
+}
 
 async function sendMessage() {
   const text = userInput.value.trim();
   if (!text || isGenerating) return;
 
-  isGenerating = true;
+  setGenerating(true);
   addMessage('user', text);
   userInput.value = '';
   userInput.style.height = 'auto';
   userInput.disabled = true;
-  sendBtn.disabled = true;
+  sendBtn.disabled = false;   // stays enabled to allow Stop click
   typingDots.classList.add('active');
   chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -960,11 +1842,11 @@ async function sendMessage() {
     }
   } catch (err) {
     typingDots.classList.remove('active');
-    modelContent.textContent = 'Connection error. Is the server running?';
+    modelContent.textContent = t().connError;
     console.error(err);
   }
 
-  isGenerating = false;
+  setGenerating(false);
   userInput.disabled = false;
   sendBtn.disabled = false;
   userInput.focus();
@@ -972,11 +1854,14 @@ async function sendMessage() {
   pollStatus();
 }
 
-sendBtn.addEventListener('click', sendMessage);
+sendBtn.addEventListener('click', () => {
+  if (isGenerating) stopGeneration();
+  else sendMessage();
+});
 userInput.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    sendMessage();
+    if (!isGenerating) sendMessage();
   }
 });
 </script>

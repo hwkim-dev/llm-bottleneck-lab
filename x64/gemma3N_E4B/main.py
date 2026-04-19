@@ -154,35 +154,51 @@ def _ensure_gamma(gamma):
     return _GAMMA_CACHE[gid]
 
 
+def _cpu_matmul_from_tuple(x, w):
+    """CPU fallback: decode an (int4-packed | int8, scale) tuple and matmul with x."""
+    packed, scale = w
+    if packed.dtype == np.uint8:
+        low = (packed & 0x0F).astype(np.int8)
+        low[low > 7] -= 16
+        high = (packed >> 4).astype(np.int8)
+        high[high > 7] -= 16
+        res = np.empty((packed.shape[0], packed.shape[1] * 2), dtype=np.float32)
+        res[:, 0::2] = low
+        res[:, 1::2] = high
+        w_real = res * scale[:, np.newaxis]
+    else:  # int8
+        w_real = packed.astype(np.float32) * scale[:, np.newaxis]
+    return np.dot(x, w_real.T)
+
+
 def hw_matmul(x, w, use_gelu=False):
-    if ACCEL_MODE == "IGPU":
-        return FAST_MATRIX_CORE.igpu_matmul_gelu(x, w) if use_gelu else FAST_MATRIX_CORE.igpu_matmul(x, w)
+    # Vulkan GEMV only supports INT4 packed (uint8) weights.  Everything
+    # else runs on the CPU path for now — see IGPU_CORE.py for the TODO.
+    if isinstance(w, tuple):
+        packed, _scale = w
+        if ACCEL_MODE == "IGPU" and packed.dtype == np.uint8:
+            return (FAST_MATRIX_CORE.igpu_matmul_gelu(x, w) if use_gelu
+                    else FAST_MATRIX_CORE.igpu_matmul(x, w))
+        out = _cpu_matmul_from_tuple(x, w)
     else:
-        if isinstance(w, tuple):
-            packed, scale = w
-            low = (packed & 0x0F).astype(np.int8)
-            low[low > 7] -= 16
-            high = (packed >> 4).astype(np.int8)
-            high[high > 7] -= 16
-            res = np.empty((packed.shape[0], packed.shape[1]*2), dtype=np.float32)
-            res[:, 0::2] = low
-            res[:, 1::2] = high
-            w_real = res * scale[:, np.newaxis]
-            out = np.dot(x, w_real.T)
+        # Raw FP16 / FP32 weight stored pre-transposed as [K_in, M_out].
+        if ACCEL_MODE == "IGPU":
+            out = FAST_MATRIX_CORE.igpu_matmul(x, w)
         else:
             out = np.dot(x, w)
-        return CPU_CORE.gelu(out) if use_gelu else out
+    return CPU_CORE.gelu(out) if use_gelu else out
+
 
 def hw_prefetch(w, buf_idx):
-    if ACCEL_MODE == "IGPU" and isinstance(w, tuple):
+    if ACCEL_MODE == "IGPU" and isinstance(w, tuple) and w[0].dtype == np.uint8:
         FAST_MATRIX_CORE.prefetch_weight(w, buf_idx)
 
+
 def hw_compute_pingpong(x, w, buf_idx, use_gelu=False, out=None):
-    if ACCEL_MODE == "IGPU" and isinstance(w, tuple):
+    if ACCEL_MODE == "IGPU" and isinstance(w, tuple) and w[0].dtype == np.uint8:
         result = FAST_MATRIX_CORE.compute_pingpong(x, w, buf_idx, out=out)
         return CPU_CORE.gelu(result) if use_gelu else result
-    else:
-        return hw_matmul(x, w, use_gelu)
+    return hw_matmul(x, w, use_gelu)
     
 def rms_norm(x, gamma):
     if x.dtype == np.float32 and x.flags['C_CONTIGUOUS']:
@@ -204,11 +220,51 @@ def get_router_modalities(x, w_norm, w_router):
     x_n = rms_norm(x, w_norm) / 2048.0
     return np.tanh(np.dot(x_n, w_router))
 
+def forward_draft_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale,
+                            norm_ple, W_ple_proj, altup_projs, K_cache, V_cache,
+                            num_draft_layers: int = 17):
+    """Layer-skip self-speculative draft: runs the first `num_draft_layers`
+    transformer layers, then short-circuits back up through the altup path.
+
+    Quality caveat: without explicit LayerSkip training the early-exit logits
+    are noisy, so the verify step typically rejects often.  This exists as a
+    zero-weights speculative path — see docs/Speculative_Decoding_Research.md
+    for what a proper E2B MatFormer draft would require.
+    """
+    global NUM_LAYERS
+    saved = NUM_LAYERS
+    try:
+        NUM_LAYERS = max(1, min(num_draft_layers, saved))
+        return forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale,
+                                 norm_ple, W_ple_proj, altup_projs, K_cache, V_cache)
+    finally:
+        NUM_LAYERS = saved
+
+
+def _embed_row(token_id, w):
+    """Row-wise embed lookup across INT4 / INT8 / FP16 / FP32 weight formats."""
+    if isinstance(w, tuple):
+        packed, scale = w
+        if packed.dtype == np.uint8:
+            return CPU_CORE.embedding(token_id, packed, scale)
+        return packed[token_id].astype(np.float32) * scale[token_id]
+    return w[token_id].astype(np.float32)
+
+
+def _embed_row_split(token_id, packed, scale):
+    """As above but with pre-split packed/scale (W_ple convention). scale may be None."""
+    if scale is None:
+        return packed[token_id].astype(np.float32)
+    if packed.dtype == np.uint8:
+        return CPU_CORE.embedding(token_id, packed, scale)
+    return packed[token_id].astype(np.float32) * scale[token_id]
+
+
 def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm_ple,
                       W_ple_proj, altup_projs, K_cache, V_cache):
 
     safe_token_id = int(min(token_id, W_ple_packed.shape[0] - 1))
-    x0 = CPU_CORE.embedding(safe_token_id, W_embed[0], W_embed[1])
+    x0 = _embed_row(safe_token_id, W_embed)
     x0 = x0 * math.sqrt(2048.0)
 
     xs = np.zeros((4, 2048), dtype=np.float32)
@@ -222,7 +278,7 @@ def forward_one_token(token_id, pos, W, W_embed, W_ple_packed, W_ple_scale, norm
     rms_vals   = np.sqrt(np.mean(x_proj_f32 ** 2, axis=1, keepdims=True) + 1e-6)
     x_proj_normed = (x_proj_f32 / rms_vals) * norm_ple
 
-    unpacked_w_ple = CPU_CORE.embedding(safe_token_id, W_ple_packed, W_ple_scale)
+    unpacked_w_ple = _embed_row_split(safe_token_id, W_ple_packed, W_ple_scale)
     y = unpacked_w_ple.reshape(35, 256) * math.sqrt(256.0)
     pli_all = (x_proj_normed + y) * (1.0 / math.sqrt(2.0))
 
@@ -428,26 +484,115 @@ def select_modes():
     print("=" * 56)
     print("  Gemma 3N E4B — Inference Configuration")
     print("=" * 56)
-    
+
+    installed = {v["mode"] for v in safeTensor.list_variants()}
+    if not installed:
+        print("\n  ⚠ No weight variants installed under models/.")
+        print("    Convert an HF snapshot first:")
+        print("      python quantize.py --mode int4 --src /path/to/hf-gemma-3n-E4B-it\n")
+
+    weight_menu = [("1", "INT4", "4-bit packed, Vulkan-accelerated"),
+                   ("2", "INT8", "8-bit, CPU matmul"),
+                   ("3", "FP16", "half precision, CPU matmul"),
+                   ("4", "FP32", "full precision baseline")]
+    print("\n  [Weight Mode]")
+    for key, mode, desc in weight_menu:
+        marker = "✓" if mode.lower() in installed else " "
+        print(f"    {key}) [{marker}] {mode:4}  — {desc}")
+    choice = input("  Select [1-4, default=1]: ").strip()
+    WEIGHT_MODE = {"1": "INT4", "2": "INT8", "3": "FP16", "4": "FP32"}.get(choice, "INT4")
+
     feature_options = {"1": "FP32", "2": "BF16", "3": "INT8", "4": "INT4"}
     print("\n  [Feature Map Mode] (activation precision)")
     print("    1) FP32  — Full precision (baseline, recommended)")
     print("    2) BF16  — BFloat16 (half bandwidth)")
     print("    3) INT8  — 8-bit quantized")
     print("    4) INT4  — 4-bit quantized (aggressive)")
-    
     choice = input("  Select [1-4, default=1]: ").strip()
     FEATURE_MODE = feature_options.get(choice, "FP32")
-    
-    print(f"\n  [Weight Mode] (currently fixed: INT4)")
-    WEIGHT_MODE = "INT4"
-    
+
     print(f"\n  ┌─────────────────────────────────┐")
     print(f"  │  Weight Mode:      {WEIGHT_MODE:>10}   │")
     print(f"  │  Feature Map Mode: {FEATURE_MODE:>10}   │")
     print(f"  │  Accelerator:      {ACCEL_MODE:>10}   │")
     print(f"  └─────────────────────────────────┘")
     print()
+
+
+def _variant_dir_for_mode(mode: str, model_name: str = "gemma-3n-e4b"):
+    """Return an existing model directory matching `mode`, else None."""
+    candidate = os.path.join(safeTensor.models_dir, f"{model_name}-{mode.lower()}")
+    if os.path.isdir(candidate) and any(
+        f.endswith(".npy") for f in os.listdir(candidate)
+    ):
+        return candidate
+    return None
+
+
+def _any_weights_available(mode: str) -> bool:
+    """Return True iff SOME usable weights exist for this mode."""
+    if _variant_dir_for_mode(mode) is not None:
+        return True
+    # legacy fallback: mmap_weights/ works for int4 only
+    return (mode.lower() == "int4"
+            and os.path.isdir(safeTensor.mmap_dir)
+            and any(f.endswith(".npy") for f in os.listdir(safeTensor.mmap_dir)))
+
+
+def _prompt_download_and_quantize(mode: str) -> bool:
+    """Interactive: offer to download + quantize weights when none are installed.
+
+    Returns True on success (weights now available), False if user declined or it failed.
+    """
+    print()
+    print(f"  ✗ No weights found for WEIGHT_MODE={mode.upper()}.")
+    print(f"    Expected one of:")
+    print(f"      • models/gemma-3n-e4b-{mode.lower()}/")
+    if mode.lower() == "int4":
+        print(f"      • mmap_weights/   (legacy INT4)")
+    answer = input("\n  Download google/gemma-3n-E4B-it from HuggingFace and quantize now? [y/N] ").strip().lower()
+    if answer not in ("y", "yes"):
+        print("  Aborted.  Install manually via:")
+        print(f"    python quantize.py --mode {mode.lower()} --hf-id google/gemma-3n-E4B-it")
+        return False
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError:
+        print("  huggingface_hub is not installed.  Run: pip install huggingface_hub")
+        return False
+
+    token = input("  HF token (press Enter if you already ran `huggingface-cli login`): ").strip()
+
+    hf_id = "google/gemma-3n-E4B-it"
+    cache_dir = os.path.join(os.path.dirname(safeTensor.models_dir),
+                             "hf_cache", hf_id.replace("/", "__"))
+    os.makedirs(cache_dir, exist_ok=True)
+    print(f"\n  → snapshot_download({hf_id}) into {cache_dir}")
+    try:
+        snapshot_download(
+            repo_id=hf_id, local_dir=cache_dir,
+            allow_patterns=["*.safetensors", "*.json", "tokenizer*"],
+            **({"token": token} if token else {}),
+        )
+    except Exception as e:
+        msg = str(e)
+        print(f"\n  ✗ Download failed: {type(e).__name__}: {msg[:200]}")
+        if "401" in msg or "gated" in msg.lower() or "restricted" in msg.lower():
+            print("    This model is gated — visit https://huggingface.co/" + hf_id)
+            print("    to accept the license, then get a token from")
+            print("    https://huggingface.co/settings/tokens")
+        return False
+
+    import quantize as _quantize
+    dst = os.path.join(safeTensor.models_dir, f"gemma-3n-e4b-{mode.lower()}")
+    print(f"  → quantize --mode {mode.lower()} → {dst}")
+    try:
+        _quantize.convert(cache_dir, dst, mode.lower())
+    except Exception as e:
+        print(f"\n  ✗ Quantize failed: {type(e).__name__}: {e}")
+        return False
+    print("\n  ✓ Weights ready.")
+    return True
 
 
 def main():
@@ -463,8 +608,16 @@ def main():
 
     FAST_MATRIX_CORE.warmup()
     print(f"\nGemma 3N [W:{WEIGHT_MODE} / A:{FEATURE_MODE}] - Chat Mode")
+
+    if not _any_weights_available(WEIGHT_MODE):
+        if not _prompt_download_and_quantize(WEIGHT_MODE):
+            print("  Exiting.")
+            sys.exit(1)
+
+    variant_dir = _variant_dir_for_mode(WEIGHT_MODE)
     W_embed, W_ple_packed, W_ple_scale, norm_ple, W_ple_proj, altup_projs, altup_unprojs, \
-        W_final_norm, W_lm_head, W = safeTensor.load_local_weights()
+        W_final_norm, W_lm_head, W = safeTensor.load_local_weights(
+            model_dir=variant_dir, mode=WEIGHT_MODE.lower())
     
     print("[Memory] Optimizing weighted VRAM...")
     FAST_MATRIX_CORE.preload_and_free(W, _IGPU_WEIGHT_KEYS)

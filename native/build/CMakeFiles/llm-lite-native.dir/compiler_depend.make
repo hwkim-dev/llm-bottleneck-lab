@@ -1160,6 +1160,7 @@ CMakeFiles/llm-lite-native.dir/main.cpp.o: /home/hwkim/Desktop/github/llm-lite/n
   /usr/include/c++/13/bits/range_access.h \
   /usr/include/c++/13/bits/refwrap.h \
   /usr/include/c++/13/bits/requires_hosted.h \
+  /usr/include/c++/13/bits/specfun.h \
   /usr/include/c++/13/bits/sstream.tcc \
   /usr/include/c++/13/bits/std_abs.h \
   /usr/include/c++/13/bits/std_function.h \
@@ -1196,6 +1197,7 @@ CMakeFiles/llm-lite-native.dir/main.cpp.o: /home/hwkim/Desktop/github/llm-lite/n
   /usr/include/c++/13/cerrno \
   /usr/include/c++/13/chrono \
   /usr/include/c++/13/clocale \
+  /usr/include/c++/13/cmath \
   /usr/include/c++/13/compare \
   /usr/include/c++/13/cstddef \
   /usr/include/c++/13/cstdint \
@@ -1235,6 +1237,18 @@ CMakeFiles/llm-lite-native.dir/main.cpp.o: /home/hwkim/Desktop/github/llm-lite/n
   /usr/include/c++/13/string_view \
   /usr/include/c++/13/system_error \
   /usr/include/c++/13/thread \
+  /usr/include/c++/13/tr1/bessel_function.tcc \
+  /usr/include/c++/13/tr1/beta_function.tcc \
+  /usr/include/c++/13/tr1/ell_integral.tcc \
+  /usr/include/c++/13/tr1/exp_integral.tcc \
+  /usr/include/c++/13/tr1/gamma.tcc \
+  /usr/include/c++/13/tr1/hypergeometric.tcc \
+  /usr/include/c++/13/tr1/legendre_function.tcc \
+  /usr/include/c++/13/tr1/modified_bessel_func.tcc \
+  /usr/include/c++/13/tr1/poly_hermite.tcc \
+  /usr/include/c++/13/tr1/poly_laguerre.tcc \
+  /usr/include/c++/13/tr1/riemann_zeta.tcc \
+  /usr/include/c++/13/tr1/special_function_util.h \
   /usr/include/c++/13/tuple \
   /usr/include/c++/13/type_traits \
   /usr/include/c++/13/typeinfo \
@@ -1252,6 +1266,7 @@ CMakeFiles/llm-lite-native.dir/main.cpp.o: /home/hwkim/Desktop/github/llm-lite/n
   /usr/include/linux/posix_types.h \
   /usr/include/linux/stddef.h \
   /usr/include/locale.h \
+  /usr/include/math.h \
   /usr/include/netdb.h \
   /usr/include/netinet/in.h \
   /usr/include/pthread.h \
@@ -1296,12 +1311,21 @@ CMakeFiles/llm-lite-native.dir/main.cpp.o: /home/hwkim/Desktop/github/llm-lite/n
   /usr/include/x86_64-linux-gnu/bits/fcntl2.h \
   /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
   /usr/include/x86_64-linux-gnu/bits/floatn.h \
+  /usr/include/x86_64-linux-gnu/bits/flt-eval-method.h \
+  /usr/include/x86_64-linux-gnu/bits/fp-fast.h \
+  /usr/include/x86_64-linux-gnu/bits/fp-logb.h \
   /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
   /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
   /usr/include/x86_64-linux-gnu/bits/in.h \
+  /usr/include/x86_64-linux-gnu/bits/iscanonical.h \
   /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
+  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
   /usr/include/x86_64-linux-gnu/bits/locale.h \
   /usr/include/x86_64-linux-gnu/bits/long-double.h \
+  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
+  /usr/include/x86_64-linux-gnu/bits/mathcalls-helper-functions.h \
+  /usr/include/x86_64-linux-gnu/bits/mathcalls-narrow.h \
+  /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
   /usr/include/x86_64-linux-gnu/bits/netdb.h \
   /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
   /usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h \

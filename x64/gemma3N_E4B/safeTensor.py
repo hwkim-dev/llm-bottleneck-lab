@@ -194,7 +194,21 @@ import os
 import gc
 import glob
 import re
+import json
 import psutil
+import resource
+
+# The split-weight MMAP layout opens 2000+ files simultaneously (one per
+# tensor plus sidecar scales).  Bump the soft fd limit unconditionally so
+# every entry point — main.py, gui_app.py, and any future caller — is safe.
+try:
+    _soft, _hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    _target = max(65536, _soft)
+    _target = min(_target, _hard if _hard > 0 else _target)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (_target, max(_hard, _target)))
+except Exception:
+    pass
+
 
 def print_ram_usage(step_name):
     process = psutil.Process(os.getpid())
@@ -203,11 +217,92 @@ def print_ram_usage(step_name):
     print(f"[{step_name}] RAM Usage: {rss_mb:.2f} MB")
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-# Now, rather than looking at the safetensors folder, we are looking at the split mmap_weights folder.
+# Legacy MMAP split directory (INT4 only).  Newer variants live under models/.
 mmap_dir = os.path.join(base_dir, "mmap_weights")
+models_dir = os.path.join(base_dir, "models")
 
-def load_local_weights(model_dir=mmap_dir):
-    print(f"Loading INT4 Quantized Gemma Weights via MMAP from {model_dir}...")
+# Populated by load_local_weights after a successful load so other modules
+# (e.g. main.py) can branch on the active quantization mode.
+LOADED_MODE = None
+LOADED_DIR = None
+
+
+def list_variants():
+    """Return [{name, mode, path, size_bytes, created}] for all installed models.
+
+    Scans models/*/manifest.json plus the legacy mmap_weights/ directory.
+    """
+    out = []
+    if os.path.isdir(models_dir):
+        for entry in sorted(os.listdir(models_dir)):
+            path = os.path.join(models_dir, entry)
+            mfest = os.path.join(path, "manifest.json")
+            if os.path.isfile(mfest):
+                try:
+                    with open(mfest) as f:
+                        m = json.load(f)
+                    out.append({
+                        "name": entry,
+                        "mode": m.get("mode", "unknown"),
+                        "path": path,
+                        "size_bytes": m.get("size_bytes", 0),
+                        "created": m.get("created", ""),
+                        "model": m.get("model", "gemma-3n-e4b"),
+                    })
+                except Exception:
+                    pass
+    if os.path.isdir(mmap_dir) and glob.glob(os.path.join(mmap_dir, "*.npy")):
+        size = sum(os.path.getsize(p) for p in glob.glob(os.path.join(mmap_dir, "*.npy")))
+        out.append({
+            "name": "mmap_weights (legacy)",
+            "mode": "int4",
+            "path": mmap_dir,
+            "size_bytes": size,
+            "created": "",
+            "model": "gemma-3n-e4b",
+        })
+    return out
+
+
+def _resolve_dir(model_dir):
+    """Pick a directory to load from when caller didn't specify one."""
+    if model_dir:
+        return model_dir
+    # Prefer an installed variant.  Order of preference: int4 → int8 → fp16 → fp32.
+    for mode in ("int4", "int8", "fp16", "fp32"):
+        candidate = os.path.join(models_dir, f"gemma-3n-e4b-{mode}")
+        if os.path.isdir(candidate) and glob.glob(os.path.join(candidate, "*.npy")):
+            return candidate
+    # Legacy fallback.
+    return mmap_dir
+
+
+def _detect_mode(model_dir):
+    manifest = os.path.join(model_dir, "manifest.json")
+    if os.path.isfile(manifest):
+        try:
+            with open(manifest) as f:
+                return json.load(f).get("mode")
+        except Exception:
+            pass
+    return "int4"  # legacy mmap_weights default
+
+
+def _copy_to_ram(v):
+    """Eagerly copy a memmap / tuple-of-memmaps into a plain in-RAM ndarray."""
+    if isinstance(v, tuple):
+        return tuple(np.array(x) for x in v)
+    return np.array(v)
+
+
+def load_local_weights(model_dir=None, mode=None, cache_embeddings=False):
+    global LOADED_MODE, LOADED_DIR
+    model_dir = _resolve_dir(model_dir)
+    mode = mode or _detect_mode(model_dir)
+    LOADED_MODE = mode
+    LOADED_DIR = model_dir
+    print(f"Loading Gemma 3N weights [mode={mode}, cache_embeddings={cache_embeddings}] "
+          f"via MMAP from {model_dir}...")
     
     num_layers = 35
     layers = {
@@ -282,21 +377,34 @@ def load_local_weights(model_dir=mmap_dir):
     print_ram_usage("2. MMAP Mapping Complete")
 
     P = "model.language_model."
-    
-    # Tuple and array decomposition (maintaining full compatibility with main.py)
+
+    # Tuple and array decomposition — for INT4/INT8 the embedding entries are
+    # stored as (packed/int8, scale) tuples; for FP16/FP32 they are raw arrays.
     W_embed = globals_dict[P + "embed_tokens.weight"]
-    W_ple_packed, W_ple_scale = globals_dict[P + "embed_tokens_per_layer.weight"]
-    
+    _W_ple = globals_dict[P + "embed_tokens_per_layer.weight"]
+    if isinstance(_W_ple, tuple):
+        W_ple_packed, W_ple_scale = _W_ple
+    else:
+        W_ple_packed, W_ple_scale = _W_ple, None
+
     norm_ple = globals_dict[P + "per_layer_projection_norm.weight"]
     W_ple_proj = globals_dict[P + "per_layer_model_projection.weight"]
-    
+
     altup_projs = [globals_dict[P + f"altup_projections.{i}.weight"] for i in range(3)]
     altup_unprojs = [globals_dict[P + f"altup_unembed_projections.{i}.weight"] for i in range(3)]
     W_final_norm = globals_dict[P + "norm.weight"]
 
     W_lm_head = W_embed
 
-    print("All Weights Loaded (INT4 MMAP Support) ✓")
+    if cache_embeddings:
+        print("  → Copying embedding tables into RAM (speeds up token lookups)...")
+        W_embed = _copy_to_ram(W_embed)
+        W_ple_packed = _copy_to_ram(W_ple_packed)
+        if W_ple_scale is not None:
+            W_ple_scale = _copy_to_ram(W_ple_scale)
+        W_lm_head = W_embed  # shares storage with W_embed
+
+    print(f"All Weights Loaded [mode={mode}] ✓")
     return (W_embed, 
             W_ple_packed, 
             W_ple_scale,

@@ -1,6 +1,6 @@
 /*
  * llm-lite :: Native GUI
- * Vulkan + Dear ImGui  |  Hacker-aesthetic, zero-bloat
+ * Vulkan + Dear ImGui  |  Modern slim dark, zero-bloat
  * Talks to the Python Flask backend via HTTP/SSE (localhost:5000)
  *
  * Layout:
@@ -10,6 +10,10 @@
  *   │  > user: ...                 │  stats       │
  *   │  > model: ...                │  [SEND/RST]  │
  *   +──────────[ INPUT ]───────────+──────────────+
+ *
+ * For edge / headless devices (KV260) this replaces the browser GUI
+ * entirely.  Later plans: move model-manager + speculative-decode toggle
+ * into this process once they stabilize in the web GUI.
  */
 
 #define GLFW_INCLUDE_VULKAN
@@ -24,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cmath>
 
 #include <string>
 #include <vector>
@@ -64,6 +69,20 @@ static constexpr int   WIN_H        = 720;
 static constexpr int   LOG_MAX      = 800;
 static constexpr int   BACKEND_PORT = 5000;
 
+/* ─── url opener ─────────────────────────────────────────── */
+static void open_url(const char* url) {
+#ifdef _WIN32
+    std::string cmd = std::string("start \"\" \"") + url + "\"";
+    (void)!system(cmd.c_str());
+#elif __APPLE__
+    std::string cmd = std::string("open '") + url + "'";
+    (void)!system(cmd.c_str());
+#else
+    std::string cmd = std::string("xdg-open '") + url + "' >/dev/null 2>&1 &";
+    (void)!system(cmd.c_str());
+#endif
+}
+
 /* ─── log entry ──────────────────────────────────────────── */
 enum LogRole { LOG_SYS, LOG_USER, LOG_MODEL, LOG_ERR };
 
@@ -86,6 +105,15 @@ struct AppState {
     float   temperature = 0.65f;
     float   top_p       = 0.90f;
     int     max_tokens  = 512;
+    int     kv_cache    = 512;
+    int     last_kv_sent = 512;
+
+    /* backend GPU info (populated by the startup probe) */
+    std::string  gpu_device;
+    std::atomic<bool> gpu_fp16_faster{false};
+
+    /* weight mode reported by /api/status */
+    std::string  weight_mode = "INT4";
 
     char    input_buf[2048]{};
     bool    scroll_to_bottom = false;
@@ -252,6 +280,24 @@ static void reset_context()
     SOCK_CLOSE(s);
 }
 
+/* Fire-and-forget POST with a JSON body; response body is discarded. */
+static void post_json(const std::string& path, const std::string& body)
+{
+    SOCKET s = connect_to_backend();
+    if (s == INVALID_SOCKET) return;
+    char req[2048];
+    snprintf(req, sizeof(req),
+        "POST %s HTTP/1.0\r\n"
+        "Host: %s\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: %d\r\n"
+        "Connection: close\r\n\r\n%s",
+        path.c_str(), BACKEND_HOST, (int)body.size(), body.c_str());
+    send(s, req, (int)strlen(req), 0);
+    char buf[512]; recv(s, buf, sizeof(buf), 0);
+    SOCK_CLOSE(s);
+}
+
 } // namespace http
 
 /* ─── inference thread ───────────────────────────────────── */
@@ -295,54 +341,56 @@ static void run_inference(std::string prompt,
     g_state.generating = false;
 }
 
-/* ─── ImGui style: sharp-edge hacker dark ───────────────── */
+/* ─── ImGui style: modern slim dark (purple accent) ─────── */
 static void apply_hacker_style()
 {
     ImGuiStyle& s = ImGui::GetStyle();
-    s.WindowRounding    = 0.0f;
-    s.ChildRounding     = 0.0f;
-    s.FrameRounding     = 2.0f;
-    s.GrabRounding      = 0.0f;
-    s.TabRounding       = 0.0f;
-    s.ScrollbarRounding = 0.0f;
+    s.WindowRounding    = 8.0f;
+    s.ChildRounding     = 6.0f;
+    s.FrameRounding     = 6.0f;
+    s.GrabRounding      = 6.0f;
+    s.TabRounding       = 5.0f;
+    s.PopupRounding     = 6.0f;
+    s.ScrollbarRounding = 8.0f;
     s.WindowBorderSize  = 1.0f;
-    s.FrameBorderSize   = 1.0f;
-    s.ItemSpacing       = {6, 4};
-    s.FramePadding      = {8, 5};
+    s.FrameBorderSize   = 0.0f;
+    s.ItemSpacing       = {8, 6};
+    s.FramePadding      = {10, 6};
 
     ImVec4* c = s.Colors;
-    c[ImGuiCol_WindowBg]          = {0.05f, 0.05f, 0.05f, 1.f};
-    c[ImGuiCol_ChildBg]           = {0.07f, 0.07f, 0.07f, 1.f};
-    c[ImGuiCol_PopupBg]           = {0.08f, 0.08f, 0.08f, 1.f};
-    c[ImGuiCol_Border]            = {0.22f, 0.22f, 0.22f, 1.f};
-    c[ImGuiCol_FrameBg]           = {0.10f, 0.10f, 0.10f, 1.f};
-    c[ImGuiCol_FrameBgHovered]    = {0.15f, 0.15f, 0.15f, 1.f};
-    c[ImGuiCol_FrameBgActive]     = {0.20f, 0.20f, 0.20f, 1.f};
-    c[ImGuiCol_TitleBg]           = {0.08f, 0.08f, 0.08f, 1.f};
-    c[ImGuiCol_TitleBgActive]     = {0.10f, 0.10f, 0.10f, 1.f};
-    c[ImGuiCol_TitleBgCollapsed]  = {0.05f, 0.05f, 0.05f, 1.f};
-    c[ImGuiCol_MenuBarBg]         = {0.08f, 0.08f, 0.08f, 1.f};
-    c[ImGuiCol_ScrollbarBg]       = {0.05f, 0.05f, 0.05f, 1.f};
-    c[ImGuiCol_ScrollbarGrab]     = {0.25f, 0.25f, 0.25f, 1.f};
-    c[ImGuiCol_ScrollbarGrabHovered]= {0.35f, 0.35f, 0.35f, 1.f};
-    c[ImGuiCol_ScrollbarGrabActive] = {0.45f, 0.45f, 0.45f, 1.f};
-    c[ImGuiCol_CheckMark]         = {0.30f, 0.80f, 0.50f, 1.f};
-    c[ImGuiCol_SliderGrab]        = {0.20f, 0.70f, 0.90f, 1.f};
-    c[ImGuiCol_SliderGrabActive]  = {0.30f, 0.85f, 1.00f, 1.f};
-    c[ImGuiCol_Button]            = {0.15f, 0.15f, 0.15f, 1.f};
-    c[ImGuiCol_ButtonHovered]     = {0.22f, 0.22f, 0.22f, 1.f};
-    c[ImGuiCol_ButtonActive]      = {0.30f, 0.30f, 0.30f, 1.f};
-    c[ImGuiCol_Header]            = {0.15f, 0.15f, 0.15f, 1.f};
-    c[ImGuiCol_HeaderHovered]     = {0.20f, 0.20f, 0.20f, 1.f};
-    c[ImGuiCol_HeaderActive]      = {0.28f, 0.28f, 0.28f, 1.f};
-    c[ImGuiCol_Separator]         = {0.20f, 0.20f, 0.20f, 1.f};
-    c[ImGuiCol_Tab]               = {0.08f, 0.08f, 0.08f, 1.f};
-    c[ImGuiCol_TabHovered]        = {0.15f, 0.15f, 0.15f, 1.f};
-    c[ImGuiCol_TabActive]         = {0.14f, 0.40f, 0.55f, 1.f};
-    c[ImGuiCol_Text]              = {0.83f, 0.83f, 0.83f, 1.f};
-    c[ImGuiCol_TextDisabled]      = {0.40f, 0.40f, 0.40f, 1.f};
-    c[ImGuiCol_PlotLines]         = {0.30f, 0.80f, 0.50f, 1.f};
-    c[ImGuiCol_PlotHistogram]     = {0.20f, 0.65f, 0.85f, 1.f};
+    /* purple primary (#8b5cf6 = 0.545,0.361,0.965), cyan-ish accent2 (#06b6d4) */
+    c[ImGuiCol_WindowBg]          = {0.059f, 0.059f, 0.090f, 1.f};   // #0f0f17
+    c[ImGuiCol_ChildBg]           = {0.086f, 0.086f, 0.120f, 1.f};   // #16161f
+    c[ImGuiCol_PopupBg]           = {0.118f, 0.118f, 0.165f, 1.f};   // #1e1e2a
+    c[ImGuiCol_Border]            = {1.00f, 1.00f, 1.00f, 0.07f};
+    c[ImGuiCol_FrameBg]           = {1.00f, 1.00f, 1.00f, 0.04f};
+    c[ImGuiCol_FrameBgHovered]    = {0.545f, 0.361f, 0.965f, 0.15f};
+    c[ImGuiCol_FrameBgActive]     = {0.545f, 0.361f, 0.965f, 0.30f};
+    c[ImGuiCol_TitleBg]           = {0.086f, 0.086f, 0.120f, 1.f};
+    c[ImGuiCol_TitleBgActive]     = {0.118f, 0.118f, 0.165f, 1.f};
+    c[ImGuiCol_TitleBgCollapsed]  = {0.059f, 0.059f, 0.090f, 1.f};
+    c[ImGuiCol_MenuBarBg]         = {0.086f, 0.086f, 0.120f, 1.f};
+    c[ImGuiCol_ScrollbarBg]       = {0.0f, 0.0f, 0.0f, 0.0f};
+    c[ImGuiCol_ScrollbarGrab]     = {0.145f, 0.145f, 0.196f, 1.f};
+    c[ImGuiCol_ScrollbarGrabHovered]= {0.22f, 0.22f, 0.30f, 1.f};
+    c[ImGuiCol_ScrollbarGrabActive] = {0.545f, 0.361f, 0.965f, 0.6f};
+    c[ImGuiCol_CheckMark]         = {0.545f, 0.361f, 0.965f, 1.f};
+    c[ImGuiCol_SliderGrab]        = {0.545f, 0.361f, 0.965f, 1.f};
+    c[ImGuiCol_SliderGrabActive]  = {0.655f, 0.471f, 1.000f, 1.f};
+    c[ImGuiCol_Button]            = {0.545f, 0.361f, 0.965f, 0.14f};
+    c[ImGuiCol_ButtonHovered]     = {0.545f, 0.361f, 0.965f, 0.30f};
+    c[ImGuiCol_ButtonActive]      = {0.545f, 0.361f, 0.965f, 0.55f};
+    c[ImGuiCol_Header]            = {0.545f, 0.361f, 0.965f, 0.12f};
+    c[ImGuiCol_HeaderHovered]     = {0.545f, 0.361f, 0.965f, 0.25f};
+    c[ImGuiCol_HeaderActive]      = {0.545f, 0.361f, 0.965f, 0.45f};
+    c[ImGuiCol_Separator]         = {1.00f, 1.00f, 1.00f, 0.08f};
+    c[ImGuiCol_Tab]               = {0.086f, 0.086f, 0.120f, 1.f};
+    c[ImGuiCol_TabHovered]        = {0.545f, 0.361f, 0.965f, 0.30f};
+    c[ImGuiCol_TabActive]         = {0.545f, 0.361f, 0.965f, 0.60f};
+    c[ImGuiCol_Text]              = {0.886f, 0.886f, 0.941f, 1.f};   // #e2e2f0
+    c[ImGuiCol_TextDisabled]      = {0.545f, 0.545f, 0.627f, 1.f};   // #8b8ba0
+    c[ImGuiCol_PlotLines]         = {0.545f, 0.361f, 0.965f, 1.f};
+    c[ImGuiCol_PlotHistogram]     = {0.024f, 0.714f, 0.831f, 1.f};   // #06b6d4
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -674,79 +722,234 @@ static void rebuild_swapchain(GLFWwindow* win)
     ImGui_ImplVulkan_SetMinImageCount((uint32_t)g_vk.sc_images.size());
 }
 
-/* ─── UI drawing ─────────────────────────────────────────── */
-static void draw_ui()
+/* ─── UI drawing (modern dark theme, web-parity) ─────────── */
+
+/* Shared palette */
+static const ImVec4 COL_ACCENT        = {0.545f, 0.361f, 0.965f, 1.00f};  // #8b5cf6
+static const ImVec4 COL_ACCENT_SOFT   = {0.545f, 0.361f, 0.965f, 0.16f};
+static const ImVec4 COL_ACCENT2       = {0.024f, 0.714f, 0.831f, 1.00f};  // #06b6d4
+static const ImVec4 COL_TEXT          = {0.886f, 0.886f, 0.941f, 1.00f};  // #e2e2f0
+static const ImVec4 COL_TEXT_MUTED    = {0.545f, 0.545f, 0.627f, 1.00f};  // #8b8ba0
+static const ImVec4 COL_CARD_USER     = {0.545f, 0.361f, 0.965f, 0.10f};
+static const ImVec4 COL_CARD_MODEL    = {0.118f, 0.118f, 0.165f, 1.00f};  // #1e1e2a
+static const ImVec4 COL_OK            = {0.133f, 0.773f, 0.369f, 1.00f};  // #22c55e
+static const ImVec4 COL_WARN          = {0.984f, 0.667f, 0.282f, 1.00f};  // #fbbf24
+static const ImVec4 COL_ERR           = {0.937f, 0.267f, 0.267f, 1.00f};  // #ef4444
+
+enum AppTab { TAB_CHAT = 0, TAB_SETTINGS = 1, TAB_ABOUT = 2 };
+static int g_tab = TAB_CHAT;
+
+static void section_header(const char* label)
 {
-    ImGuiIO& io = ImGui::GetIO();
-    float    sw = io.DisplaySize.x;
-    float    sh = io.DisplaySize.y;
+    ImGui::Spacing();
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+    ImGui::Text("%s", label);
+    ImGui::PopStyleColor();
+    ImGui::Separator();
+    ImGui::Spacing();
+}
 
-    static const float CTRL_W    = 280.0f;
-    static const float INPUT_H   = 54.0f;
-    static const float HEADER_H  = 28.0f;
-    float log_w = sw - CTRL_W - 1.0f;
-    float log_h = sh - INPUT_H - HEADER_H;
+static void draw_msg_card(const LogLine& l, int idx, float width)
+{
+    if (l.role == LOG_SYS) {
+        ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+        ImGui::TextWrapped(" ·  %s", l.text.c_str());
+        ImGui::PopStyleColor();
+        return;
+    }
+    if (l.role == LOG_ERR) {
+        ImGui::PushStyleColor(ImGuiCol_Text, COL_ERR);
+        ImGui::TextWrapped(" !  %s", l.text.c_str());
+        ImGui::PopStyleColor();
+        return;
+    }
 
-    /* ── header bar ── */
+    const bool is_user = (l.role == LOG_USER);
+    const ImVec4 bg        = is_user ? COL_CARD_USER  : COL_CARD_MODEL;
+    const ImVec4 avatar_bg = is_user ? COL_ACCENT     : COL_ACCENT2;
+    const ImVec4 name_c    = is_user ? ImVec4{0.655f, 0.471f, 1.000f, 1.f}
+                                     : ImVec4{0.400f, 0.914f, 0.976f, 1.f};
+    const char* name       = is_user ? "You" : "Gemma 3N";
+    const char* avatar     = is_user ? "U"   : "G";
+
+    char label[32];
+    snprintf(label, sizeof(label), "##msg%d", idx);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {14, 10});
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, bg);
+    ImGui::PushStyleColor(ImGuiCol_Border, {1.0f, 1.0f, 1.0f, 0.05f});
+
+    ImGui::BeginChild(label, {width, 0},
+        ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders,
+        ImGuiWindowFlags_NoScrollbar);
+
+    /* Avatar circle (fake — we use a small colored box + text) */
+    ImGui::PushStyleColor(ImGuiCol_Button,        avatar_bg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, avatar_bg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  avatar_bg);
+    ImGui::PushStyleColor(ImGuiCol_Text,          ImVec4{1,1,1,1});
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 7.0f);
+    ImGui::Button(avatar, {26, 26});
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(4);
+
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    ImGui::Dummy({0, 2});
+    ImGui::PushStyleColor(ImGuiCol_Text, name_c);
+    ImGui::Text("%s", name);
+    ImGui::PopStyleColor();
+    ImGui::EndGroup();
+
+    ImGui::Dummy({0, 2});
+
+    /* message body wrapped at card width */
+    ImGui::PushTextWrapPos(width - 28);
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT);
+    ImGui::TextUnformatted(l.text.c_str());
+    ImGui::PopStyleColor();
+    ImGui::PopTextWrapPos();
+
+    ImGui::EndChild();
+    ImGui::PopStyleColor(2);
+    ImGui::PopStyleVar(2);
+
+    ImGui::Dummy({0, 6});
+}
+
+static void draw_header(float sw, float h)
+{
     ImGui::SetNextWindowPos({0, 0});
-    ImGui::SetNextWindowSize({sw, HEADER_H});
+    ImGui::SetNextWindowSize({sw, h});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {20, 10});
     ImGui::Begin("##header", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoScrollbar  | ImGuiWindowFlags_NoSavedSettings);
-    ImGui::TextColored({0.30f, 0.80f, 0.50f, 1.f}, "llm-lite");
+
+    /* logo */
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_ACCENT);
+    ImGui::Text("\xe2\x9c\xa6  llm-lite");
+    ImGui::PopStyleColor();
     ImGui::SameLine();
-    ImGui::TextDisabled(":: Gemma 3N E4B  |  v" APP_VERSION "  |  INT4 iGPU");
-    ImGui::SameLine(sw - 220.0f);
-    bool ok = g_state.backend_ok.load();
-    ImGui::TextColored(ok ? ImVec4{0.3f,0.8f,0.3f,1.f} : ImVec4{0.8f,0.3f,0.3f,1.f},
-                       ok ? "[backend: OK]" : "[backend: OFFLINE]");
-    ImGui::End();
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+    ImGui::Text("  Gemma 3N E4B");
+    ImGui::PopStyleColor();
 
-    /* ── terminal log ── */
-    ImGui::SetNextWindowPos({0, HEADER_H});
-    ImGui::SetNextWindowSize({log_w, log_h});
-    ImGui::Begin("##log", nullptr,
-        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_HorizontalScrollbar);
-
-    {
-        std::lock_guard<std::mutex> lk(g_state.log_mtx);
-        for (auto& l : g_state.log) {
-            switch (l.role) {
-            case LOG_SYS:
-                ImGui::TextColored({0.45f,0.45f,0.45f,1.f}, "%s", l.text.c_str()); break;
-            case LOG_USER:
-                ImGui::TextColored({0.30f,0.75f,1.00f,1.f}, "%s", l.text.c_str()); break;
-            case LOG_MODEL:
-                ImGui::TextColored({0.83f,0.83f,0.83f,1.f}, "%s", l.text.c_str()); break;
-            case LOG_ERR:
-                ImGui::TextColored({1.00f,0.35f,0.35f,1.f}, "%s", l.text.c_str()); break;
-            }
-        }
+    /* tabs (centered-ish) */
+    ImGui::SameLine(180);
+    const char* labels[] = {"Chat", "Settings", "About"};
+    for (int i = 0; i < 3; ++i) {
+        if (i > 0) ImGui::SameLine();
+        bool active = (g_tab == i);
+        ImGui::PushStyleColor(ImGuiCol_Button,        active ? COL_ACCENT_SOFT : ImVec4{0,0,0,0});
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, COL_ACCENT_SOFT);
+        ImGui::PushStyleColor(ImGuiCol_Text,          active ? COL_ACCENT : COL_TEXT_MUTED);
+        if (ImGui::Button(labels[i], {100, 0})) g_tab = i;
+        ImGui::PopStyleColor(3);
     }
 
+    /* right: weight mode + backend pill */
+    ImGui::SameLine(sw - 260);
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+    ImGui::Text("W:%s", g_state.weight_mode.c_str());
+    ImGui::PopStyleColor();
+    ImGui::SameLine();
+
+    bool ok = g_state.backend_ok.load();
+    ImGui::PushStyleColor(ImGuiCol_Text, ok ? COL_OK : COL_ERR);
+    ImGui::Text(ok ? "\xe2\x97\x8f  backend" : "\xe2\x97\x8b  backend");
+    ImGui::PopStyleColor();
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+static void draw_chat_tab(float sw, float sh, float header_h)
+{
+    static const float INPUT_H = 60.0f;
+    static const float STATS_H = 34.0f;
+    float body_h = sh - header_h - INPUT_H - STATS_H;
+
+    /* GPU warning strip (above chat) */
+    float warn_h = 0;
+    if (g_state.gpu_fp16_faster.load()) {
+        warn_h = 34;
+        body_h -= warn_h;
+        ImGui::SetNextWindowPos({0, header_h});
+        ImGui::SetNextWindowSize({sw, warn_h});
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, {0.984f, 0.667f, 0.282f, 0.10f});
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {20, 8});
+        ImGui::Begin("##warn", nullptr,
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoScrollbar  | ImGuiWindowFlags_NoSavedSettings);
+        ImGui::PushStyleColor(ImGuiCol_Text, COL_WARN);
+        ImGui::Text("\xe2\x9a\xa0  %s detected \xe2\x80\x94 FP16 may outperform INT on this iGPU.",
+                    g_state.gpu_device.c_str());
+        ImGui::PopStyleColor();
+        ImGui::End();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+    }
+
+    /* chat log */
+    ImGui::SetNextWindowPos({0, header_h + warn_h});
+    ImGui::SetNextWindowSize({sw, body_h});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {28, 16});
+    ImGui::Begin("##log", nullptr,
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings);
+
+    float card_w = ImGui::GetContentRegionAvail().x;
+    {
+        std::lock_guard<std::mutex> lk(g_state.log_mtx);
+        int idx = 0;
+        for (auto& l : g_state.log) {
+            draw_msg_card(l, idx++, card_w);
+        }
+    }
     if (g_state.scroll_to_bottom) {
         ImGui::SetScrollHereY(1.0f);
         g_state.scroll_to_bottom = false;
     }
     ImGui::End();
+    ImGui::PopStyleVar();
 
-    /* ── input bar ── */
-    ImGui::SetNextWindowPos({0, HEADER_H + log_h});
-    ImGui::SetNextWindowSize({log_w, INPUT_H});
+    /* input bar */
+    bool busy = g_state.generating.load();
+    ImGui::SetNextWindowPos({0, header_h + warn_h + body_h});
+    ImGui::SetNextWindowSize({sw, INPUT_H});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {28, 12});
     ImGui::Begin("##input", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings);
-
     bool send_pressed = false;
-    ImGui::SetNextItemWidth(log_w - 80.0f);
-    if (ImGui::InputText("##prompt", g_state.input_buf, sizeof(g_state.input_buf),
-                         ImGuiInputTextFlags_EnterReturnsTrue))
+    ImGui::SetNextItemWidth(sw - 180);
+    if (ImGui::InputTextWithHint("##prompt", "Message Gemma 3N \xe2\x80\x94 Enter to send",
+            g_state.input_buf, sizeof(g_state.input_buf),
+            ImGuiInputTextFlags_EnterReturnsTrue))
         send_pressed = true;
     ImGui::SameLine();
-    bool busy = g_state.generating.load();
     if (busy) ImGui::BeginDisabled();
-    if (ImGui::Button("SEND", {60, 0})) send_pressed = true;
+    ImGui::PushStyleColor(ImGuiCol_Button,        COL_ACCENT);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{0.655f, 0.471f, 1.f, 1});
+    ImGui::PushStyleColor(ImGuiCol_Text,          ImVec4{1,1,1,1});
+    if (ImGui::Button(busy ? "..." : "Send", {80, 0})) send_pressed = true;
+    ImGui::PopStyleColor(3);
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4{1,1,1,0.04f});
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{1,1,1,0.10f});
+    if (ImGui::Button("New", {50, 0})) {
+        std::thread([](){
+            http::reset_context();
+            g_state.ctx_pos    = 0;
+            g_state.token_count= 0;
+            std::lock_guard<std::mutex> lk(g_state.log_mtx);
+            g_state.log.clear();
+            g_state.log.push_back({LOG_SYS, "context reset"});
+        }).detach();
+    }
+    ImGui::PopStyleColor(2);
     if (busy) ImGui::EndDisabled();
 
     if (send_pressed && !busy && g_state.input_buf[0]) {
@@ -758,82 +961,238 @@ static void draw_ui()
         std::thread(run_inference, p, t, tp, mx).detach();
     }
     ImGui::End();
+    ImGui::PopStyleVar();
 
-    /* ── control panel ── */
-    ImGui::SetNextWindowPos({log_w + 1.0f, HEADER_H});
-    ImGui::SetNextWindowSize({CTRL_W, sh - HEADER_H});
-    ImGui::Begin("##ctrl", nullptr,
+    /* stats footer */
+    ImGui::SetNextWindowPos({0, sh - STATS_H});
+    ImGui::SetNextWindowSize({sw, STATS_H});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {28, 8});
+    ImGui::Begin("##stats", nullptr,
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoScrollbar  | ImGuiWindowFlags_NoSavedSettings);
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+    ImGui::Text("ctx: ");
+    ImGui::SameLine(); ImGui::PushStyleColor(ImGuiCol_Text, COL_ACCENT);
+    ImGui::Text("%d", (int)g_state.ctx_pos.load()); ImGui::PopStyleColor();
+    ImGui::SameLine(); ImGui::Text("    tokens: ");
+    ImGui::SameLine(); ImGui::PushStyleColor(ImGuiCol_Text, COL_ACCENT);
+    ImGui::Text("%d", (int)g_state.token_count.load()); ImGui::PopStyleColor();
+    ImGui::SameLine(); ImGui::Text("    status: ");
+    ImGui::SameLine();
+    if (busy) { ImGui::PushStyleColor(ImGuiCol_Text, COL_WARN); ImGui::Text("generating \xe2\x80\xa6"); }
+    else      { ImGui::PushStyleColor(ImGuiCol_Text, COL_OK);   ImGui::Text("idle"); }
+    ImGui::PopStyleColor();
+    ImGui::PopStyleColor();
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+static void draw_settings_tab(float sw, float sh, float header_h)
+{
+    ImGui::SetNextWindowPos({0, header_h});
+    ImGui::SetNextWindowSize({sw, sh - header_h});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {32, 24});
+    ImGui::Begin("##settings", nullptr,
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings);
 
-    ImGui::TextColored({0.45f,0.45f,0.45f,1.f}, "-- PARAMETERS ------------------");
-    ImGui::Spacing();
+    section_header("GENERATION");
 
-    ImGui::Text("Temperature"); ImGui::SameLine(110);
-    ImGui::SetNextItemWidth(120);
+    ImGui::Text("Temperature"); ImGui::SameLine(160);
+    ImGui::SetNextItemWidth(240);
     ImGui::SliderFloat("##temp", &g_state.temperature, 0.1f, 1.5f, "%.2f");
 
-    ImGui::Text("Top-p");       ImGui::SameLine(110);
-    ImGui::SetNextItemWidth(120);
+    ImGui::Text("Top-p");       ImGui::SameLine(160);
+    ImGui::SetNextItemWidth(240);
     ImGui::SliderFloat("##topp", &g_state.top_p, 0.5f, 1.0f, "%.2f");
 
-    ImGui::Text("Max tokens");  ImGui::SameLine(110);
-    ImGui::SetNextItemWidth(120);
+    ImGui::Text("Max new tokens"); ImGui::SameLine(160);
+    ImGui::SetNextItemWidth(240);
     ImGui::SliderInt("##maxt", &g_state.max_tokens, 64, 2048, "%d");
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::TextColored({0.45f,0.45f,0.45f,1.f}, "-- ACTIONS ---------------------");
-    ImGui::Spacing();
-
-    if (busy) ImGui::BeginDisabled();
-    if (ImGui::Button("NEW CONVERSATION", {CTRL_W-24, 0})) {
-        std::thread([](){
-            http::reset_context();
-            g_state.ctx_pos    = 0;
-            g_state.token_count= 0;
-            std::lock_guard<std::mutex> lk(g_state.log_mtx);
-            g_state.log.clear();
-            g_state.log.push_back({LOG_SYS, "  [context reset]"});
+    ImGui::Text("KV cache size"); ImGui::SameLine(160);
+    ImGui::SetNextItemWidth(240);
+    ImGui::SliderInt("##kv", &g_state.kv_cache, 128, 2048, "%d");
+    ImGui::Dummy({160, 0}); ImGui::SameLine();
+    {
+        float pages = roundf((g_state.kv_cache / 400.0f) * 10.0f) / 10.0f;
+        ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+        ImGui::Text("\xec\x95\xbd A4 %.1f\xec\x9e\xa5 \xeb\xb6\x84\xeb\x9f\x89\xec\x9e\x85\xeb\x8b\x88\xeb\x8b\xa4", pages);
+        ImGui::PopStyleColor();
+    }
+    if (g_state.kv_cache != g_state.last_kv_sent) {
+        g_state.last_kv_sent = g_state.kv_cache;
+        int kv = g_state.kv_cache;
+        std::thread([kv]{
+            std::string body = "{\"max_tokens\":" + std::to_string(kv) + "}";
+            http::post_json("/api/config/kv_cache", body);
         }).detach();
     }
-    if (busy) ImGui::EndDisabled();
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::TextColored({0.45f,0.45f,0.45f,1.f}, "-- STATS -----------------------");
-    ImGui::Spacing();
+    section_header("MODEL");
+    ImGui::Text("Weight mode  "); ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_ACCENT);
+    ImGui::Text("%s", g_state.weight_mode.c_str());
+    ImGui::PopStyleColor();
 
-    ImGui::Text("ctx pos  "); ImGui::SameLine();
-    ImGui::TextColored({0.30f,0.80f,0.50f,1.f}, "%d", (int)g_state.ctx_pos);
+    ImGui::Text("GPU          "); ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT);
+    ImGui::Text("%s", g_state.gpu_device.empty() ? "(probing...)" : g_state.gpu_device.c_str());
+    ImGui::PopStyleColor();
 
-    ImGui::Text("gen tok  "); ImGui::SameLine();
-    ImGui::TextColored({0.30f,0.80f,0.50f,1.f}, "%d", (int)g_state.token_count);
+    if (g_state.gpu_fp16_faster.load()) {
+        ImGui::PushStyleColor(ImGuiCol_Text, COL_WARN);
+        ImGui::Dummy({160, 0}); ImGui::SameLine();
+        ImGui::TextWrapped("\xe2\x9a\xa0  Older iGPU \xe2\x80\x94 FP16 may outperform INT.");
+        ImGui::PopStyleColor();
+    }
 
-    ImGui::Text("status   "); ImGui::SameLine();
-    if (busy)
-        ImGui::TextColored({1.0f,0.8f,0.0f,1.f}, "GENERATING");
-    else
-        ImGui::TextColored({0.30f,0.80f,0.50f,1.f}, "IDLE");
-
-    ImGui::Text("backend  "); ImGui::SameLine();
-    ImGui::TextColored(g_state.backend_ok
-        ? ImVec4{0.3f,0.8f,0.3f,1.f}
-        : ImVec4{0.8f,0.3f,0.3f,1.f},
-        "%s", BACKEND_HOST);
+    ImGui::Dummy({0, 8});
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+    ImGui::TextWrapped("Model manager (download / quantize / delete) is available in the web GUI at http://127.0.0.1:5000 \xe2\x80\x94 Settings \xe2\x86\x92 Models.");
+    ImGui::PopStyleColor();
 
     ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+static void about_link_card(const char* title, const char* subtitle, const char* url,
+                            ImVec4 icon_bg, const char* icon_label)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, {1, 1, 1, 0.03f});
+    ImGui::PushStyleColor(ImGuiCol_Border, {1, 1, 1, 0.08f});
+    char cid[32]; snprintf(cid, sizeof(cid), "##aboutcard_%s", title);
+    ImGui::BeginChild(cid, {380, 70},
+        ImGuiChildFlags_Borders, ImGuiWindowFlags_NoScrollbar);
+    ImGui::PushStyleColor(ImGuiCol_Button,        icon_bg);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, icon_bg);
+    ImGui::PushStyleColor(ImGuiCol_Text,          ImVec4{1,1,1,1});
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 9.0f);
+    ImGui::Dummy({4, 4});
+    ImGui::SameLine();
+    ImGui::Button(icon_label, {40, 40});
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(3);
+
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+    ImGui::Text("%s", subtitle);
+    ImGui::PopStyleColor();
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT);
+    ImGui::Text("%s", title);
+    ImGui::PopStyleColor();
+    ImGui::EndGroup();
+
+    /* click target covers the whole child */
+    ImGui::SetCursorPos({0, 0});
+    if (ImGui::InvisibleButton(title, {380, 70})) {
+        open_url(url);
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleColor(2);
+    ImGui::PopStyleVar();
+}
+
+static void draw_about_tab(float sw, float sh, float header_h)
+{
+    ImGui::SetNextWindowPos({0, header_h});
+    ImGui::SetNextWindowSize({sw, sh - header_h});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {40, 32});
+    ImGui::Begin("##about", nullptr,
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings);
+
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT);
+    ImGui::Text("llm-lite \xe2\x80\x94 Gemma 3N E4B \xeb\xa1\x9c\xec\xbb\xac \xec\xb6\x94\xeb\xa1\xa0 \xec\x97\x94\xec\xa7\x84");
+    ImGui::PopStyleColor();
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+    ImGui::TextWrapped("Multi-backend inference. No cloud dependency. Runs on Ryzen APU, Apple Silicon, RPi, KV260.");
+    ImGui::PopStyleColor();
+
+    ImGui::Dummy({0, 18});
+
+    about_link_card("hwkim-dev / llm-lite",  "Visit on GitHub",
+                    "https://github.com/hwkim-dev/llm-lite",
+                    COL_ACCENT, "GH");
+    ImGui::SameLine();
+    about_link_card("llm-lite tag",          "Read the blog",
+                    "https://hwkim-dev.github.io/hwkim-dev/blog/tags/llm-lite",
+                    COL_ACCENT2, "B");
+
+    ImGui::Dummy({0, 24});
+    ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
+    ImGui::TextWrapped("\xc2\xa9 2026 hwkim-dev \xe2\x80\x94 Licensed under the MIT License.");
+    ImGui::TextWrapped("Built on NumPy \xc2\xb7 Flask \xc2\xb7 Dear ImGui \xc2\xb7 Vulkan \xc2\xb7 huggingface_hub.");
+    ImGui::PopStyleColor();
+
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+static void draw_ui()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    float sw = io.DisplaySize.x;
+    float sh = io.DisplaySize.y;
+    static const float HEADER_H = 52.0f;
+
+    draw_header(sw, HEADER_H);
+
+    switch (g_tab) {
+        case TAB_CHAT:     draw_chat_tab(sw, sh, HEADER_H);     break;
+        case TAB_SETTINGS: draw_settings_tab(sw, sh, HEADER_H); break;
+        case TAB_ABOUT:    draw_about_tab(sw, sh, HEADER_H);    break;
+    }
 }
 
 /* ─── backend health probe thread ───────────────────────── */
+static std::string json_field_str(const std::string& body, const std::string& key)
+{
+    std::string search = "\"" + key + "\":\"";
+    auto p = body.find(search);
+    if (p == std::string::npos) return "";
+    p += search.size();
+    auto e = body.find('"', p);
+    return (e == std::string::npos) ? "" : body.substr(p, e - p);
+}
+
+static bool json_field_bool(const std::string& body, const std::string& key)
+{
+    std::string search = "\"" + key + "\":";
+    auto p = body.find(search);
+    if (p == std::string::npos) return false;
+    return body.compare(p + search.size(), 4, "true") == 0;
+}
+
 static void health_probe_loop()
 {
+    bool ever_ok = false;
+    int tick = 0;
     while (true) {
         bool ok = false;
         http::get("/api/health", &ok);
         g_state.backend_ok = ok;
+
+        if (ok && !ever_ok) {
+            ever_ok = true;
+            bool _o = false;
+            std::string gpu = http::get("/api/gpu-info", &_o);
+            if (_o) {
+                g_state.gpu_device = json_field_str(gpu, "device");
+                g_state.gpu_fp16_faster = json_field_bool(gpu, "fp16_faster");
+            }
+        }
+        if (ok && (tick % 3 == 0)) {
+            bool _o = false;
+            std::string st = http::get("/api/status", &_o);
+            if (_o) {
+                std::string wm = json_field_str(st, "weight_mode");
+                if (!wm.empty()) g_state.weight_mode = wm;
+            }
+        }
+        ++tick;
         std::this_thread::sleep_for(std::chrono::seconds(3));
     }
 }
@@ -981,7 +1340,7 @@ int main()
         bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         vkBeginCommandBuffer(cb, &bi);
 
-        VkClearValue clear{{0.05f, 0.05f, 0.05f, 1.0f}};
+        VkClearValue clear{{0.059f, 0.059f, 0.090f, 1.0f}};
         VkRenderPassBeginInfo rbi{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
         rbi.renderPass        = g_vk.render_pass;
         rbi.framebuffer       = g_vk.framebuffers[img_idx];

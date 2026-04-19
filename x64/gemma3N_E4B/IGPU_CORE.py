@@ -87,23 +87,32 @@ def warmup(): print("[Vulkan_GEMV] shader engine load complete ")
 
 # ================================================================
 # 4. Matrix product interface (optimized: caller-provided out buffer)
+# ----------------------------------------------------------------
+# Only INT4-packed (uint8) tuples hit the Vulkan GEMV kernel.  INT8 / FP16 /
+# FP32 run on CPU (np.dot) — new shaders for those formats are TODO.
 # ================================================================
 def igpu_matmul(x_vec: np.ndarray, weight_data, out: np.ndarray = None) -> np.ndarray:
     x_f32 = _prepare_x(x_vec)
-    
-    if isinstance(weight_data, tuple):
+
+    if isinstance(weight_data, tuple) and weight_data[0].dtype == np.uint8:
         packed, scale = weight_data
         M_out = packed.shape[0]
         K_in = packed.shape[1] * 2
-        
+
         if out is None:
             out = _get_output_buf(M_out)
-        
+
         vk_lib.run_vulkan_gemv(x_f32, packed, scale, out, M_out, K_in)
         return out
-    else:
-        w_f32 = np.ascontiguousarray(weight_data.astype(np.float32))
-        return np.dot(x_f32, w_f32)
+
+    # CPU fallback for INT8 / FP16 / FP32 (caller in main.hw_matmul normally
+    # routes these directly, this is the safety net).
+    if isinstance(weight_data, tuple):
+        packed, scale = weight_data
+        w_f32 = packed.astype(np.float32) * scale[:, np.newaxis]
+        return np.dot(x_f32, w_f32.T)
+    w_f32 = np.ascontiguousarray(weight_data.astype(np.float32))
+    return np.dot(x_f32, w_f32)
 
 def igpu_matmul_gelu(x_vec: np.ndarray, weight_data) -> np.ndarray:
     out = igpu_matmul(x_vec, weight_data)
@@ -112,7 +121,8 @@ def igpu_matmul_gelu(x_vec: np.ndarray, weight_data) -> np.ndarray:
 
 
 def prefetch_weight(weight_data, buf_idx: int):
-    if isinstance(weight_data, tuple):
+    # Prefetch only makes sense for the Vulkan path (INT4 packed).
+    if isinstance(weight_data, tuple) and weight_data[0].dtype == np.uint8:
         packed, scale = weight_data
         M_out = packed.shape[0]
         K_in = packed.shape[1] * 2
@@ -120,17 +130,22 @@ def prefetch_weight(weight_data, buf_idx: int):
 
 def compute_pingpong(x_vec: np.ndarray, weight_data, buf_idx: int, out: np.ndarray = None) -> np.ndarray:
     x_f32 = _prepare_x(x_vec)
-    
-    if isinstance(weight_data, tuple):
+
+    if isinstance(weight_data, tuple) and weight_data[0].dtype == np.uint8:
         packed, scale = weight_data
         M_out = packed.shape[0]
         K_in = packed.shape[1] * 2
-        
+
         if out is None:
             out = _get_output_buf(M_out)
-        
+
         vk_lib.run_vulkan_gemv_pingpong(x_f32, scale, out, M_out, K_in, buf_idx)
         return out
-    else:
-        w_f32 = np.ascontiguousarray(weight_data.astype(np.float32))
+
+    # CPU fallback for non-INT4 formats.
+    if isinstance(weight_data, tuple):
+        packed, scale = weight_data
+        w_f32 = packed.astype(np.float32) * scale[:, np.newaxis]
         return np.dot(x_f32, w_f32.T)
+    w_f32 = np.ascontiguousarray(weight_data.astype(np.float32))
+    return np.dot(x_f32, w_f32.T)
