@@ -51,6 +51,12 @@ def generate_speculative(
                    'accepted': int, 'drafted': int})
     """
     w = state["weights"]
+    
+    # Init E2B MatFormer draft weights once per session if missing or draft_layers changed
+    if "W_draft" not in w or len(w["W_draft"]["W_gate"]) != draft_layers:
+        import matformer_slice
+        w["W_draft"] = matformer_slice.slice_to_e2b(w["W"], num_layers=draft_layers, intermediate_size=8192)
+
     K_cache = state["K_cache"]
     V_cache = state["V_cache"]
 
@@ -78,7 +84,7 @@ def generate_speculative(
     accepted_total = 0
     drafted_total = 0
     stopped = False
-    last_token = input_tokens[-1] if input_tokens else 2
+    last_token = input_tokens[-1] if len(input_tokens) > 0 else 2
 
     while token_count < max_tokens:
         if cancel_event.is_set():
@@ -94,7 +100,7 @@ def generate_speculative(
                 draft_prev, cur_pos + d, w["W"], w["W_embed"], w["W_ple_packed"],
                 w["W_ple_scale"], w["norm_ple"], w["W_ple_proj"],
                 w["altup_projs"], K_cache, V_cache,
-                num_draft_layers=draft_layers,
+                num_draft_layers=draft_layers, W_draft=w["W_draft"]
             )
             logits = main_mod.decode_logits(draft_xs, w["altup_unprojs"],
                                             w["W_final_norm"], w["W_lm_head"])

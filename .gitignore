@@ -22,6 +22,7 @@ env/
 
 # markdown and extention for personal use
 GEMINI.md
+AGENTS.md
 .VSCodeCounter/
 .github/
 .settings/
@@ -29,3 +30,6 @@ github/
 settings/
 CLAUDE.md
 *.txt
+
+# Native C++ build artifacts (CMake FetchContent, imgui-src, etc.)
+native/build/

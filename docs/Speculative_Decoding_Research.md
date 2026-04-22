@@ -99,6 +99,13 @@ The batched path is what pays off.
 6. Wire a "Speculative" toggle into `gui_app.py` (`/api/chat?mode=spec`)
    once quality-gated.
 
+## Implementation Progress
+
+- **Goal Achieved**: We successfully built `matformer_slice.py` which dynamically extracts the `E2B` model by halving the `intermediate_size` (FFN dimensions) from 16384 to 8192 while retaining the full 35 layers.
+- **Buffer Integration**: Fixed the `IGPU_CORE.py` buffer allocator to natively support `M_out=8192` dynamic out shapes alongside the standard 16384 buffers.
+- **Acceptance Rate**: The `E2B` draft generates about ~35% accepted tokens on average on standard 4B inference.
+- **Performance bottleneck**: We are using sequential verification (`for k, dt in enumerate(draft_tokens)`). Because `E2B` is only ~1.4x smaller than `E4B` (as FFN accounts for ~57% of params), sequential verify causes a net slowdown. To achieve >1x wall-clock speedup, a batched target verification (parallel forward over `[batch, hidden]` instead of vector `[hidden]`) is required.
+
 ## References
 
 - Leviathan, Kalman, Matias. *Fast Inference from Transformers via

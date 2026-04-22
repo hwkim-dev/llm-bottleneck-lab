@@ -59,6 +59,10 @@ _OUTPUT_BUF_POOL = {}
 def _get_output_buf(size: int) -> np.ndarray:
     if size not in _OUTPUT_BUF_POOL:
         _OUTPUT_BUF_POOL[size] = np.empty(size, dtype=np.float32)
+    
+    if _OUTPUT_BUF_POOL[size].shape[0] != size:
+        print(f"POOL BUG: size={size}, stored_shape={_OUTPUT_BUF_POOL[size].shape}, keys={[k for k in _OUTPUT_BUF_POOL.keys()]}")
+        
     return _OUTPUT_BUF_POOL[size]
 
 # Reusable x buffer (avoids ascontiguousarray + astype every call)
@@ -138,6 +142,9 @@ def compute_pingpong(x_vec: np.ndarray, weight_data, buf_idx: int, out: np.ndarr
 
         if out is None:
             out = _get_output_buf(M_out)
+
+        if out.shape[0] != M_out:
+            print(f"CRITICAL ERROR in IGPU_CORE: _get_output_buf({M_out}) returned shape {out.shape}!")
 
         vk_lib.run_vulkan_gemv_pingpong(x_f32, scale, out, M_out, K_in, buf_idx)
         return out

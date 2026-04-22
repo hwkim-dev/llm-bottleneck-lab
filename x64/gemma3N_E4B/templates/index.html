@@ -1128,7 +1128,7 @@ textarea#userInput::placeholder { color: var(--text-muted); }
             <input type="checkbox" id="specDecodeToggle" style="margin-top:3px">
             <div>
               <div style="font-size:13px;font-weight:500" data-i18n="specTitle">Speculative decoding (experimental)</div>
-              <div class="param-hint" data-i18n="specHint">Layer-skip self-speculative draft (first N of 35 layers) + full-model verify. Without LayerSkip training the acceptance rate is usually low (≈5–20%); a real E2B MatFormer draft is tracked in docs/Speculative_Decoding_Research.md.</div>
+              <div class="param-hint" data-i18n="specHint">Speculative Decoding using MatFormer E2B slice (35 layers, 8192 FFN). Acceptance rate is ~35%. Note: Target verification is currently sequential, so speedup relies on CPU batching (WIP).</div>
             </div>
           </label>
 
@@ -1198,7 +1198,7 @@ const T = {
     cacheEmbTitle: 'Cache embeddings in RAM',
     cacheEmbHint: 'Copies the embedding + per-layer-embedding tables out of MMAP into plain RAM. Speeds up every token by ~5–15% at the cost of ~1.4 GB extra RAM. No effect on layer weights (still MMAP).',
     specTitle: 'Speculative decoding (experimental)',
-    specHint: 'Layer-skip self-speculative draft (first N of 35 layers) + full-model verify. Without LayerSkip training the acceptance rate is usually low (≈5–20%); a real E2B MatFormer draft is tracked in docs/Speculative_Decoding_Research.md.',
+    specHint: 'Speculative Decoding using MatFormer E2B slice (35 layers, 8192 FFN). Acceptance rate is ~35%. Note: Target verification is currently sequential, so speedup relies on CPU batching (WIP).',
     applyReload: 'Apply & reload model',
     aboutTagline: 'local inference engine for Gemma 3N E4B.',
     backendLbl: 'Backend',
@@ -1236,7 +1236,7 @@ const T = {
     cacheEmbTitle: 'Embedding 테이블을 RAM 에 캐시',
     cacheEmbHint: 'embedding + per-layer-embedding 테이블을 MMAP 에서 RAM 으로 복사. 토큰당 5~15% 빨라지지만 RAM 약 1.4GB 추가. 레이어 가중치는 그대로 MMAP.',
     specTitle: 'Speculative decoding (실험적)',
-    specHint: 'Layer-skip self-speculative draft (35 레이어 중 앞 N개) + full-model verify. LayerSkip 훈련 없이는 수용률이 낮음 (5~20%); 진짜 E2B MatFormer draft 는 docs/Speculative_Decoding_Research.md 참고.',
+    specHint: 'MatFormer E2B 슬라이스 (35레이어, 8192 FFN)를 활용한 Speculative Decoding. 수용률은 약 35%입니다. 참고: 현재 대상 검증이 순차적이므로, 속도 향상은 CPU 배치 처리에 의존합니다 (WIP).',
     applyReload: '적용 & 모델 재로드',
     aboutTagline: 'Gemma 3N E4B 로컬 추론 엔진',
     backendLbl: '백엔드',

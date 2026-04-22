@@ -55,6 +55,7 @@ ENGINE_CONFIG = {
     "use_spec_decode": False,
     "spec_gamma": 4,
     "spec_draft_variant": None,   # e.g. "gemma-3n-e2b-int4"
+    "use_streaming_llm": False,   # Attention Sinks for infinite context
 }
 
 # ── Model manager + GPU info state ──────────────────────────────
@@ -583,11 +584,12 @@ def chat():
         _generation_cancel.clear()
 
         if ENGINE_CONFIG.get("use_spec_decode"):
-            gamma = int(ENGINE_CONFIG.get("spec_gamma", 4))
+            gamma = int(ENGINE_CONFIG.get("spec_gamma", 4)) 
+            draft_layers = int(ENGINE_CONFIG.get("spec_draft_layers", 35))
             for kind, payload in spec_decode.generate_speculative(
                 user_input, model_state, gem_main, CPU_CORE, _generation_cancel,
                 temperature=temperature, top_p=top_p, rep_penalty=rep_penalty,
-                max_tokens=max_tokens, gamma=gamma,
+                max_tokens=max_tokens, gamma=gamma, draft_layers=draft_layers
             ):
                 if kind == "token":
                     new_text, count = payload
