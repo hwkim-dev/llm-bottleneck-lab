@@ -191,10 +191,10 @@ case "$ARCH" in
         fi
         ;;
     aarch64)
-        MARCH="-march=armv8-a+simd"
+        MARCH="-march=armv8-a+simd -mfp16-format=ieee"
         ;;
     armv7*)
-        MARCH="-march=armv7-a -mfpu=neon-fp-armv8 -mfloat-abi=hard"
+        MARCH="-march=armv7-a -mfpu=neon-fp-armv8 -mfloat-abi=hard -mfp16-format=ieee"
         ;;
     *)
         MARCH=""
@@ -203,7 +203,7 @@ case "$ARCH" in
 esac
 
 info "Compiling my_accelerator.so  (SIMD/OpenMP) [$MARCH]"
-g++ -O3 $MARCH -shared -fPIC -fopenmp -mfp16-format=ieee \
+g++ -O3 $MARCH -shared -fPIC -fopenmp \
     -o C_DLL/my_accelerator.so C_DLL/my_accelerator.cpp
 ok "my_accelerator.so"
 

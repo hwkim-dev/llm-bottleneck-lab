@@ -84,12 +84,22 @@ pip install -r requirements.txt
 You need to build the optimized C++ shared libraries (`.so`) that Python will call. The compilation is tailored for the supported hardware (Configured Target: Ryzen 5 4500U znver2).
 
 ```bash
+cd x64/gemma3N_E4B
 bash build.sh
 ```
 
 Note: Upon successful compilation, `my_accelerator.so` and `vulkan_core.so` will be generated in the `C_DLL/` directory.
 
-## 3. Running the Inference
+## 3. Testing (Offline Smoke Test)
+If you want to verify that the environment setup and C++ compilation was successful without needing gated Hugging Face weights, you can run the minimal offline smoke test:
+
+```bash
+cd x64/gemma3N_E4B
+source pynq_env/bin/activate
+python3 smoke_test.py
+```
+
+## 4. Running the Inference
 
 Two front-ends share the same inference engine. Pick whichever fits the host.
 

@@ -1,0 +1,41 @@
+name: Ubuntu x86_64 CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libvulkan-dev glslang-tools python3-pip python3-venv
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Create venv and install Python dependencies
+      run: |
+        python3 -m venv x64/gemma3N_E4B/pynq_env
+        source x64/gemma3N_E4B/pynq_env/bin/activate
+        pip install --upgrade pip
+        pip install -r x64/gemma3N_E4B/requirements.txt
+
+    - name: Build C++ DLLs
+      run: |
+        cd x64/gemma3N_E4B
+        bash build.sh
+
+    - name: Run Smoke Test
+      run: |
+        source x64/gemma3N_E4B/pynq_env/bin/activate
+        python x64/gemma3N_E4B/smoke_test.py

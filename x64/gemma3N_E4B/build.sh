@@ -10,8 +10,14 @@ DLL_DIR="$SCRIPT_DIR/C_DLL"
 echo "=== Building my_accelerator.so ==="
 echo "Target: Ryzen 5 4500U (znver2)"
 
-g++ -O3 -march=znver2 -shared -fPIC -fopenmp \
-    -mfp16-format=ieee \
+# Use architecture-aware flags
+ARCH=$(uname -m)
+EXTRA_FLAGS=""
+if [[ "$ARCH" == "aarch64" ]] || [[ "$ARCH" == "armv7"* ]]; then
+    EXTRA_FLAGS="-mfp16-format=ieee"
+fi
+
+g++ -O3 -march=znver2 -shared -fPIC -fopenmp $EXTRA_FLAGS \
     -o "$DLL_DIR/my_accelerator.so" \
     "$DLL_DIR/my_accelerator.cpp"
 

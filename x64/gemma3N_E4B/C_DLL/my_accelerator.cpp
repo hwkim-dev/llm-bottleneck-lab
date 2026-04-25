@@ -3,6 +3,12 @@
 #include <omp.h>   
 #include <cstring>
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+    #define PORTABLE_FP16 _Float16
+#else
+    #define PORTABLE_FP16 __fp16
+#endif
+
 #define GELU_CONST 0.7978845608028654f
 
 // Force export to C specification so Python ctypes can find function names.
@@ -259,9 +265,9 @@ extern "C" {
                     #pragma omp simd reduction(+:dot)
                     for (int d = 0; d < head_dim; d++)
                     {
-                        // GCC __fp16: hardware-correct fp16->fp32 conversion
-                        __fp16 k_h;
-                        std::memcpy(&k_h, &k_row[d], sizeof(__fp16));
+                    // Hardware-correct fp16->fp32 conversion
+                    PORTABLE_FP16 k_h;
+                    std::memcpy(&k_h, &k_row[d], sizeof(PORTABLE_FP16));
                         dot += q_head[d] * (float)k_h;
                     }
                     scores[s] = dot;
@@ -286,8 +292,8 @@ extern "C" {
                     for (int s = 0; s < seq_len; s++)
                     {
                         const uint16_t *v_row = V_cache + s * kv_dim + g * head_dim;
-                        __fp16 v_h;
-                        std::memcpy(&v_h, &v_row[d], sizeof(__fp16));
+                    PORTABLE_FP16 v_h;
+                    std::memcpy(&v_h, &v_row[d], sizeof(PORTABLE_FP16));
                         acc += scores[s] * (float)v_h;
                     }
                     out_head[d] = acc;

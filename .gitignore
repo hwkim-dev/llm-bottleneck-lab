@@ -18,18 +18,22 @@ env/
 *.json
 *.jinja
 *.spv~
+*.spv
+*.so
+run.sh
+run-native.sh
 
 
 # markdown and extention for personal use
 GEMINI.md
 AGENTS.md
 .VSCodeCounter/
-.github/
 .settings/
 github/
 settings/
 CLAUDE.md
 *.txt
+!requirements.txt
 
 # Native C++ build artifacts (CMake FetchContent, imgui-src, etc.)
 native/build/
