@@ -1,0 +1,9 @@
+torch
+numpy
+Flask
+huggingface-hub
+safetensors
+psutil
+tqdm
+colorama
+vulkan
