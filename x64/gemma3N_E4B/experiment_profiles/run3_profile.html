@@ -1,0 +1,961 @@
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<style>
+body{font-family: Arial, sans-serif; background:#121212; color:#e0e0e0; padding:20px;}
+h2{color:#4fc3f7; text-align:center;}
+table{border-collapse: collapse; margin:0 auto; font-size:14px;}
+th,td{border: 1px solid #333; padding: 6px 12px; text-align: right;}
+th{background: #1f1f1f; text-align: center; color:#b39ddb; position: sticky; top:0;}
+tr:hover{filter: brightness(1.2);}
+.prefill{background: #111a22;}
+.decode{background: #182318;}
+.hl{color: #ffd54f; font-weight:bold;}
+</style></head><body>
+<h2>Gemma 3N Inference Operation Profiler</h2>
+<table><tr><th>#</th><th>Stage</th>
+<th>ffn</th>
+<th>o_proj</th>
+<th>qkv</th>
+<th>ple</th>
+<th>laurel</th>
+<th>altup_corr</th>
+<th>altup_pred</th>
+<th>qk_rope</th>
+<th>attn</th>
+<th>TOTAL</th><th>Tokens/sec</th></tr>
+<tr class='prefill'><td>0</td><td style='text-align:center;'>Prefill</td>
+<td>968.6</td>
+<td>108.7</td>
+<td>135.2</td>
+<td>67.4</td>
+<td>36.6</td>
+<td>5.1</td>
+<td>3.0</td>
+<td>1.9</td>
+<td>1.9</td>
+<td class='hl'>1328.5 ms</td><td class='hl'>0.8</td></tr>
+<tr class='prefill'><td>1</td><td style='text-align:center;'>Prefill</td>
+<td>986.7</td>
+<td>120.5</td>
+<td>143.2</td>
+<td>57.8</td>
+<td>43.6</td>
+<td>6.7</td>
+<td>3.1</td>
+<td>2.6</td>
+<td>2.7</td>
+<td class='hl'>1366.8 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>2</td><td style='text-align:center;'>Prefill</td>
+<td>998.2</td>
+<td>111.4</td>
+<td>140.1</td>
+<td>79.9</td>
+<td>46.0</td>
+<td>6.3</td>
+<td>2.9</td>
+<td>3.5</td>
+<td>2.5</td>
+<td class='hl'>1390.7 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>3</td><td style='text-align:center;'>Prefill</td>
+<td>982.7</td>
+<td>113.9</td>
+<td>137.0</td>
+<td>76.2</td>
+<td>42.2</td>
+<td>17.8</td>
+<td>3.0</td>
+<td>2.2</td>
+<td>3.2</td>
+<td class='hl'>1378.3 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>4</td><td style='text-align:center;'>Prefill</td>
+<td>956.7</td>
+<td>112.2</td>
+<td>125.6</td>
+<td>67.3</td>
+<td>33.8</td>
+<td>4.7</td>
+<td>2.8</td>
+<td>1.8</td>
+<td>2.9</td>
+<td class='hl'>1307.7 ms</td><td class='hl'>0.8</td></tr>
+<tr class='prefill'><td>5</td><td style='text-align:center;'>Prefill</td>
+<td>973.6</td>
+<td>112.5</td>
+<td>136.5</td>
+<td>53.6</td>
+<td>42.0</td>
+<td>5.4</td>
+<td>3.3</td>
+<td>2.9</td>
+<td>3.7</td>
+<td class='hl'>1333.5 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>6</td><td style='text-align:center;'>Prefill</td>
+<td>984.0</td>
+<td>120.8</td>
+<td>138.4</td>
+<td>85.1</td>
+<td>41.2</td>
+<td>8.0</td>
+<td>3.0</td>
+<td>2.4</td>
+<td>3.8</td>
+<td class='hl'>1386.7 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>7</td><td style='text-align:center;'>Prefill</td>
+<td>999.7</td>
+<td>118.6</td>
+<td>149.1</td>
+<td>71.5</td>
+<td>48.6</td>
+<td>5.3</td>
+<td>2.9</td>
+<td>2.4</td>
+<td>4.5</td>
+<td class='hl'>1402.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>8</td><td style='text-align:center;'>Prefill</td>
+<td>1008.3</td>
+<td>114.1</td>
+<td>142.8</td>
+<td>90.1</td>
+<td>38.5</td>
+<td>5.4</td>
+<td>4.5</td>
+<td>2.0</td>
+<td>4.3</td>
+<td class='hl'>1409.9 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>9</td><td style='text-align:center;'>Prefill</td>
+<td>998.3</td>
+<td>115.9</td>
+<td>138.8</td>
+<td>65.0</td>
+<td>41.8</td>
+<td>5.7</td>
+<td>3.0</td>
+<td>2.8</td>
+<td>5.7</td>
+<td class='hl'>1377.0 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>10</td><td style='text-align:center;'>Prefill</td>
+<td>1013.7</td>
+<td>120.4</td>
+<td>159.7</td>
+<td>73.1</td>
+<td>37.9</td>
+<td>5.0</td>
+<td>2.9</td>
+<td>3.7</td>
+<td>4.8</td>
+<td class='hl'>1421.3 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>11</td><td style='text-align:center;'>Prefill</td>
+<td>1002.1</td>
+<td>128.8</td>
+<td>160.2</td>
+<td>85.7</td>
+<td>42.8</td>
+<td>5.0</td>
+<td>2.9</td>
+<td>2.6</td>
+<td>6.2</td>
+<td class='hl'>1436.4 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>12</td><td style='text-align:center;'>Prefill</td>
+<td>970.6</td>
+<td>105.2</td>
+<td>129.4</td>
+<td>66.4</td>
+<td>36.6</td>
+<td>6.2</td>
+<td>3.6</td>
+<td>2.6</td>
+<td>7.3</td>
+<td class='hl'>1327.8 ms</td><td class='hl'>0.8</td></tr>
+<tr class='prefill'><td>13</td><td style='text-align:center;'>Prefill</td>
+<td>990.1</td>
+<td>113.7</td>
+<td>132.9</td>
+<td>60.4</td>
+<td>38.6</td>
+<td>6.0</td>
+<td>3.4</td>
+<td>2.8</td>
+<td>7.8</td>
+<td class='hl'>1355.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>14</td><td style='text-align:center;'>Prefill</td>
+<td>1042.4</td>
+<td>119.0</td>
+<td>135.6</td>
+<td>92.9</td>
+<td>53.0</td>
+<td>4.6</td>
+<td>2.8</td>
+<td>2.1</td>
+<td>6.0</td>
+<td class='hl'>1458.4 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>15</td><td style='text-align:center;'>Prefill</td>
+<td>1033.5</td>
+<td>114.4</td>
+<td>144.6</td>
+<td>102.2</td>
+<td>40.2</td>
+<td>6.6</td>
+<td>4.2</td>
+<td>2.1</td>
+<td>6.7</td>
+<td class='hl'>1454.5 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>16</td><td style='text-align:center;'>Prefill</td>
+<td>985.0</td>
+<td>117.3</td>
+<td>132.1</td>
+<td>80.3</td>
+<td>44.2</td>
+<td>5.9</td>
+<td>3.0</td>
+<td>2.0</td>
+<td>7.3</td>
+<td class='hl'>1377.2 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>17</td><td style='text-align:center;'>Prefill</td>
+<td>980.6</td>
+<td>115.4</td>
+<td>131.3</td>
+<td>68.3</td>
+<td>37.2</td>
+<td>4.5</td>
+<td>2.9</td>
+<td>2.1</td>
+<td>8.5</td>
+<td class='hl'>1350.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>18</td><td style='text-align:center;'>Prefill</td>
+<td>979.1</td>
+<td>115.9</td>
+<td>134.5</td>
+<td>77.7</td>
+<td>36.5</td>
+<td>5.2</td>
+<td>2.8</td>
+<td>2.0</td>
+<td>8.2</td>
+<td class='hl'>1361.9 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>19</td><td style='text-align:center;'>Prefill</td>
+<td>1015.8</td>
+<td>126.6</td>
+<td>164.3</td>
+<td>115.1</td>
+<td>48.0</td>
+<td>7.1</td>
+<td>3.2</td>
+<td>2.5</td>
+<td>9.1</td>
+<td class='hl'>1491.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='prefill'><td>20</td><td style='text-align:center;'>Prefill</td>
+<td>969.7</td>
+<td>116.6</td>
+<td>134.2</td>
+<td>78.2</td>
+<td>53.7</td>
+<td>5.4</td>
+<td>3.1</td>
+<td>1.9</td>
+<td>8.0</td>
+<td class='hl'>1370.9 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>21</td><td style='text-align:center;'>Decode</td>
+<td>966.2</td>
+<td>110.1</td>
+<td>132.0</td>
+<td>59.0</td>
+<td>35.0</td>
+<td>5.7</td>
+<td>3.3</td>
+<td>2.4</td>
+<td>10.3</td>
+<td class='hl'>1324.0 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>22</td><td style='text-align:center;'>Decode</td>
+<td>1002.5</td>
+<td>110.2</td>
+<td>157.1</td>
+<td>80.2</td>
+<td>49.5</td>
+<td>6.0</td>
+<td>4.1</td>
+<td>2.8</td>
+<td>10.7</td>
+<td class='hl'>1423.1 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>23</td><td style='text-align:center;'>Decode</td>
+<td>988.8</td>
+<td>114.4</td>
+<td>143.3</td>
+<td>64.9</td>
+<td>39.0</td>
+<td>8.9</td>
+<td>4.0</td>
+<td>2.3</td>
+<td>10.0</td>
+<td class='hl'>1375.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>24</td><td style='text-align:center;'>Decode</td>
+<td>954.4</td>
+<td>107.6</td>
+<td>137.8</td>
+<td>97.3</td>
+<td>39.6</td>
+<td>5.2</td>
+<td>2.8</td>
+<td>2.1</td>
+<td>9.4</td>
+<td class='hl'>1356.2 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>25</td><td style='text-align:center;'>Decode</td>
+<td>1015.6</td>
+<td>139.7</td>
+<td>159.0</td>
+<td>92.2</td>
+<td>55.2</td>
+<td>5.6</td>
+<td>3.0</td>
+<td>4.3</td>
+<td>9.4</td>
+<td class='hl'>1484.1 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>26</td><td style='text-align:center;'>Decode</td>
+<td>1064.1</td>
+<td>129.1</td>
+<td>148.5</td>
+<td>75.7</td>
+<td>43.1</td>
+<td>6.6</td>
+<td>3.0</td>
+<td>2.3</td>
+<td>11.6</td>
+<td class='hl'>1484.0 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>27</td><td style='text-align:center;'>Decode</td>
+<td>1025.0</td>
+<td>132.4</td>
+<td>150.0</td>
+<td>72.9</td>
+<td>59.6</td>
+<td>5.1</td>
+<td>3.0</td>
+<td>2.1</td>
+<td>10.4</td>
+<td class='hl'>1460.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>28</td><td style='text-align:center;'>Decode</td>
+<td>1023.4</td>
+<td>132.3</td>
+<td>196.0</td>
+<td>157.6</td>
+<td>49.9</td>
+<td>8.0</td>
+<td>4.0</td>
+<td>2.3</td>
+<td>11.0</td>
+<td class='hl'>1584.5 ms</td><td class='hl'>0.6</td></tr>
+<tr class='decode'><td>29</td><td style='text-align:center;'>Decode</td>
+<td>1028.0</td>
+<td>132.2</td>
+<td>171.8</td>
+<td>150.9</td>
+<td>50.6</td>
+<td>5.6</td>
+<td>2.7</td>
+<td>2.8</td>
+<td>11.2</td>
+<td class='hl'>1555.8 ms</td><td class='hl'>0.6</td></tr>
+<tr class='decode'><td>30</td><td style='text-align:center;'>Decode</td>
+<td>1005.8</td>
+<td>113.1</td>
+<td>150.8</td>
+<td>75.0</td>
+<td>48.6</td>
+<td>10.3</td>
+<td>3.4</td>
+<td>3.1</td>
+<td>12.6</td>
+<td class='hl'>1422.7 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>31</td><td style='text-align:center;'>Decode</td>
+<td>980.7</td>
+<td>136.0</td>
+<td>175.5</td>
+<td>88.3</td>
+<td>46.7</td>
+<td>5.8</td>
+<td>3.6</td>
+<td>2.0</td>
+<td>12.7</td>
+<td class='hl'>1451.3 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>32</td><td style='text-align:center;'>Decode</td>
+<td>979.0</td>
+<td>112.9</td>
+<td>150.4</td>
+<td>78.4</td>
+<td>42.9</td>
+<td>5.6</td>
+<td>2.9</td>
+<td>2.3</td>
+<td>14.6</td>
+<td class='hl'>1389.0 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>33</td><td style='text-align:center;'>Decode</td>
+<td>1002.9</td>
+<td>107.3</td>
+<td>138.0</td>
+<td>60.3</td>
+<td>42.7</td>
+<td>5.0</td>
+<td>3.1</td>
+<td>2.2</td>
+<td>13.7</td>
+<td class='hl'>1375.2 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>34</td><td style='text-align:center;'>Decode</td>
+<td>978.6</td>
+<td>114.6</td>
+<td>138.3</td>
+<td>56.7</td>
+<td>41.9</td>
+<td>5.7</td>
+<td>3.3</td>
+<td>2.1</td>
+<td>13.4</td>
+<td class='hl'>1354.4 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>35</td><td style='text-align:center;'>Decode</td>
+<td>995.7</td>
+<td>129.9</td>
+<td>163.7</td>
+<td>88.2</td>
+<td>46.2</td>
+<td>6.3</td>
+<td>2.9</td>
+<td>3.8</td>
+<td>14.4</td>
+<td class='hl'>1451.0 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>36</td><td style='text-align:center;'>Decode</td>
+<td>1023.0</td>
+<td>122.0</td>
+<td>146.5</td>
+<td>79.4</td>
+<td>52.3</td>
+<td>5.6</td>
+<td>3.0</td>
+<td>2.2</td>
+<td>15.9</td>
+<td class='hl'>1449.8 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>37</td><td style='text-align:center;'>Decode</td>
+<td>992.4</td>
+<td>127.9</td>
+<td>142.5</td>
+<td>83.0</td>
+<td>42.8</td>
+<td>5.0</td>
+<td>2.9</td>
+<td>2.4</td>
+<td>18.4</td>
+<td class='hl'>1417.3 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>38</td><td style='text-align:center;'>Decode</td>
+<td>975.3</td>
+<td>116.8</td>
+<td>137.5</td>
+<td>70.8</td>
+<td>43.6</td>
+<td>6.1</td>
+<td>2.9</td>
+<td>2.2</td>
+<td>14.1</td>
+<td class='hl'>1369.1 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>39</td><td style='text-align:center;'>Decode</td>
+<td>1032.9</td>
+<td>117.3</td>
+<td>138.0</td>
+<td>65.9</td>
+<td>43.2</td>
+<td>6.0</td>
+<td>3.2</td>
+<td>2.2</td>
+<td>17.7</td>
+<td class='hl'>1426.4 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>40</td><td style='text-align:center;'>Decode</td>
+<td>972.4</td>
+<td>115.3</td>
+<td>132.2</td>
+<td>57.4</td>
+<td>39.2</td>
+<td>6.2</td>
+<td>4.8</td>
+<td>2.4</td>
+<td>18.2</td>
+<td class='hl'>1348.0 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>41</td><td style='text-align:center;'>Decode</td>
+<td>1011.2</td>
+<td>113.0</td>
+<td>134.2</td>
+<td>62.9</td>
+<td>38.4</td>
+<td>5.7</td>
+<td>3.3</td>
+<td>2.7</td>
+<td>16.2</td>
+<td class='hl'>1387.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>42</td><td style='text-align:center;'>Decode</td>
+<td>989.4</td>
+<td>121.7</td>
+<td>140.7</td>
+<td>63.9</td>
+<td>42.2</td>
+<td>5.0</td>
+<td>3.1</td>
+<td>2.5</td>
+<td>17.0</td>
+<td class='hl'>1385.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>43</td><td style='text-align:center;'>Decode</td>
+<td>840.5</td>
+<td>105.3</td>
+<td>121.4</td>
+<td>62.7</td>
+<td>48.9</td>
+<td>5.7</td>
+<td>3.4</td>
+<td>2.4</td>
+<td>17.1</td>
+<td class='hl'>1207.3 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>44</td><td style='text-align:center;'>Decode</td>
+<td>906.5</td>
+<td>111.4</td>
+<td>130.5</td>
+<td>55.5</td>
+<td>35.4</td>
+<td>5.7</td>
+<td>3.3</td>
+<td>2.2</td>
+<td>18.2</td>
+<td class='hl'>1268.6 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>45</td><td style='text-align:center;'>Decode</td>
+<td>958.6</td>
+<td>107.7</td>
+<td>138.8</td>
+<td>59.1</td>
+<td>36.6</td>
+<td>4.8</td>
+<td>2.9</td>
+<td>1.8</td>
+<td>18.5</td>
+<td class='hl'>1328.7 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>46</td><td style='text-align:center;'>Decode</td>
+<td>954.1</td>
+<td>115.4</td>
+<td>139.7</td>
+<td>67.3</td>
+<td>42.1</td>
+<td>6.6</td>
+<td>4.0</td>
+<td>2.2</td>
+<td>20.9</td>
+<td class='hl'>1352.4 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>47</td><td style='text-align:center;'>Decode</td>
+<td>775.4</td>
+<td>109.8</td>
+<td>107.9</td>
+<td>60.1</td>
+<td>40.4</td>
+<td>6.1</td>
+<td>3.5</td>
+<td>2.0</td>
+<td>19.9</td>
+<td class='hl'>1125.1 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>48</td><td style='text-align:center;'>Decode</td>
+<td>849.5</td>
+<td>104.2</td>
+<td>129.8</td>
+<td>75.6</td>
+<td>36.8</td>
+<td>7.7</td>
+<td>3.5</td>
+<td>2.4</td>
+<td>21.4</td>
+<td class='hl'>1230.8 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>49</td><td style='text-align:center;'>Decode</td>
+<td>942.2</td>
+<td>108.5</td>
+<td>126.1</td>
+<td>60.4</td>
+<td>41.3</td>
+<td>5.2</td>
+<td>2.9</td>
+<td>2.2</td>
+<td>17.8</td>
+<td class='hl'>1306.5 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>50</td><td style='text-align:center;'>Decode</td>
+<td>1026.7</td>
+<td>144.7</td>
+<td>173.1</td>
+<td>135.7</td>
+<td>58.2</td>
+<td>5.7</td>
+<td>5.8</td>
+<td>3.0</td>
+<td>20.1</td>
+<td class='hl'>1573.1 ms</td><td class='hl'>0.6</td></tr>
+<tr class='decode'><td>51</td><td style='text-align:center;'>Decode</td>
+<td>961.1</td>
+<td>114.1</td>
+<td>129.4</td>
+<td>53.3</td>
+<td>40.3</td>
+<td>5.0</td>
+<td>3.0</td>
+<td>1.9</td>
+<td>18.3</td>
+<td class='hl'>1326.4 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>52</td><td style='text-align:center;'>Decode</td>
+<td>822.1</td>
+<td>132.3</td>
+<td>127.9</td>
+<td>96.3</td>
+<td>37.3</td>
+<td>11.6</td>
+<td>3.1</td>
+<td>2.1</td>
+<td>19.3</td>
+<td class='hl'>1252.0 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>53</td><td style='text-align:center;'>Decode</td>
+<td>852.8</td>
+<td>105.9</td>
+<td>122.0</td>
+<td>72.4</td>
+<td>40.8</td>
+<td>5.2</td>
+<td>3.1</td>
+<td>2.0</td>
+<td>20.1</td>
+<td class='hl'>1224.3 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>54</td><td style='text-align:center;'>Decode</td>
+<td>995.9</td>
+<td>112.7</td>
+<td>146.8</td>
+<td>91.7</td>
+<td>45.6</td>
+<td>7.1</td>
+<td>3.1</td>
+<td>2.2</td>
+<td>19.6</td>
+<td class='hl'>1424.7 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>55</td><td style='text-align:center;'>Decode</td>
+<td>1001.7</td>
+<td>134.3</td>
+<td>161.8</td>
+<td>94.9</td>
+<td>41.4</td>
+<td>5.2</td>
+<td>3.5</td>
+<td>2.7</td>
+<td>20.5</td>
+<td class='hl'>1465.9 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>56</td><td style='text-align:center;'>Decode</td>
+<td>964.1</td>
+<td>110.7</td>
+<td>149.1</td>
+<td>71.6</td>
+<td>46.4</td>
+<td>4.9</td>
+<td>3.2</td>
+<td>2.7</td>
+<td>20.1</td>
+<td class='hl'>1372.8 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>57</td><td style='text-align:center;'>Decode</td>
+<td>752.5</td>
+<td>105.1</td>
+<td>107.9</td>
+<td>55.8</td>
+<td>35.0</td>
+<td>4.9</td>
+<td>5.0</td>
+<td>2.2</td>
+<td>22.2</td>
+<td class='hl'>1090.6 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>58</td><td style='text-align:center;'>Decode</td>
+<td>717.9</td>
+<td>95.1</td>
+<td>105.9</td>
+<td>57.0</td>
+<td>28.9</td>
+<td>6.6</td>
+<td>3.7</td>
+<td>2.3</td>
+<td>21.3</td>
+<td class='hl'>1038.7 ms</td><td class='hl'>1.0</td></tr>
+<tr class='decode'><td>59</td><td style='text-align:center;'>Decode</td>
+<td>723.1</td>
+<td>99.6</td>
+<td>102.1</td>
+<td>52.8</td>
+<td>30.9</td>
+<td>8.2</td>
+<td>3.0</td>
+<td>2.1</td>
+<td>21.2</td>
+<td class='hl'>1043.1 ms</td><td class='hl'>1.0</td></tr>
+<tr class='decode'><td>60</td><td style='text-align:center;'>Decode</td>
+<td>801.7</td>
+<td>100.2</td>
+<td>104.6</td>
+<td>54.0</td>
+<td>34.0</td>
+<td>6.9</td>
+<td>3.9</td>
+<td>2.2</td>
+<td>23.4</td>
+<td class='hl'>1130.9 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>61</td><td style='text-align:center;'>Decode</td>
+<td>767.8</td>
+<td>100.2</td>
+<td>119.1</td>
+<td>80.2</td>
+<td>43.5</td>
+<td>5.3</td>
+<td>3.4</td>
+<td>2.5</td>
+<td>23.1</td>
+<td class='hl'>1145.1 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>62</td><td style='text-align:center;'>Decode</td>
+<td>648.4</td>
+<td>89.0</td>
+<td>86.0</td>
+<td>52.8</td>
+<td>24.9</td>
+<td>4.6</td>
+<td>3.9</td>
+<td>2.3</td>
+<td>26.4</td>
+<td class='hl'>938.3 ms</td><td class='hl'>1.1</td></tr>
+<tr class='decode'><td>63</td><td style='text-align:center;'>Decode</td>
+<td>714.3</td>
+<td>103.9</td>
+<td>102.6</td>
+<td>56.7</td>
+<td>32.0</td>
+<td>5.1</td>
+<td>3.6</td>
+<td>2.6</td>
+<td>34.1</td>
+<td class='hl'>1055.0 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>64</td><td style='text-align:center;'>Decode</td>
+<td>784.2</td>
+<td>104.1</td>
+<td>116.3</td>
+<td>68.5</td>
+<td>32.7</td>
+<td>5.2</td>
+<td>2.9</td>
+<td>2.2</td>
+<td>22.5</td>
+<td class='hl'>1138.6 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>65</td><td style='text-align:center;'>Decode</td>
+<td>575.4</td>
+<td>101.3</td>
+<td>75.9</td>
+<td>52.5</td>
+<td>31.7</td>
+<td>5.0</td>
+<td>3.0</td>
+<td>1.8</td>
+<td>23.4</td>
+<td class='hl'>870.1 ms</td><td class='hl'>1.1</td></tr>
+<tr class='decode'><td>66</td><td style='text-align:center;'>Decode</td>
+<td>546.0</td>
+<td>102.1</td>
+<td>78.0</td>
+<td>52.7</td>
+<td>34.9</td>
+<td>5.2</td>
+<td>3.0</td>
+<td>2.0</td>
+<td>24.8</td>
+<td class='hl'>848.8 ms</td><td class='hl'>1.2</td></tr>
+<tr class='decode'><td>67</td><td style='text-align:center;'>Decode</td>
+<td>831.4</td>
+<td>158.9</td>
+<td>110.2</td>
+<td>56.0</td>
+<td>34.0</td>
+<td>5.2</td>
+<td>3.0</td>
+<td>4.8</td>
+<td>25.2</td>
+<td class='hl'>1228.6 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>68</td><td style='text-align:center;'>Decode</td>
+<td>937.5</td>
+<td>113.8</td>
+<td>125.4</td>
+<td>50.7</td>
+<td>40.2</td>
+<td>4.8</td>
+<td>3.1</td>
+<td>1.8</td>
+<td>23.7</td>
+<td class='hl'>1300.9 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>69</td><td style='text-align:center;'>Decode</td>
+<td>1011.0</td>
+<td>128.7</td>
+<td>138.7</td>
+<td>137.5</td>
+<td>54.9</td>
+<td>5.0</td>
+<td>3.3</td>
+<td>2.0</td>
+<td>24.6</td>
+<td class='hl'>1505.6 ms</td><td class='hl'>0.7</td></tr>
+<tr class='decode'><td>70</td><td style='text-align:center;'>Decode</td>
+<td>1060.6</td>
+<td>134.0</td>
+<td>157.5</td>
+<td>135.3</td>
+<td>58.0</td>
+<td>5.2</td>
+<td>3.8</td>
+<td>2.3</td>
+<td>24.6</td>
+<td class='hl'>1581.2 ms</td><td class='hl'>0.6</td></tr>
+<tr class='decode'><td>71</td><td style='text-align:center;'>Decode</td>
+<td>890.0</td>
+<td>117.7</td>
+<td>122.8</td>
+<td>49.6</td>
+<td>38.3</td>
+<td>5.0</td>
+<td>4.1</td>
+<td>2.2</td>
+<td>25.7</td>
+<td class='hl'>1255.4 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>72</td><td style='text-align:center;'>Decode</td>
+<td>675.8</td>
+<td>87.3</td>
+<td>115.6</td>
+<td>63.1</td>
+<td>44.4</td>
+<td>10.8</td>
+<td>5.3</td>
+<td>2.1</td>
+<td>34.0</td>
+<td class='hl'>1038.4 ms</td><td class='hl'>1.0</td></tr>
+<tr class='decode'><td>73</td><td style='text-align:center;'>Decode</td>
+<td>763.7</td>
+<td>101.0</td>
+<td>93.6</td>
+<td>57.4</td>
+<td>35.6</td>
+<td>5.6</td>
+<td>3.0</td>
+<td>2.4</td>
+<td>32.2</td>
+<td class='hl'>1094.5 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>74</td><td style='text-align:center;'>Decode</td>
+<td>821.7</td>
+<td>106.1</td>
+<td>109.3</td>
+<td>40.1</td>
+<td>30.4</td>
+<td>4.7</td>
+<td>5.8</td>
+<td>1.8</td>
+<td>25.4</td>
+<td class='hl'>1145.1 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>75</td><td style='text-align:center;'>Decode</td>
+<td>595.0</td>
+<td>131.0</td>
+<td>88.6</td>
+<td>46.6</td>
+<td>20.3</td>
+<td>9.9</td>
+<td>3.2</td>
+<td>2.2</td>
+<td>27.2</td>
+<td class='hl'>924.1 ms</td><td class='hl'>1.1</td></tr>
+<tr class='decode'><td>76</td><td style='text-align:center;'>Decode</td>
+<td>542.0</td>
+<td>81.5</td>
+<td>70.5</td>
+<td>50.1</td>
+<td>29.9</td>
+<td>6.7</td>
+<td>3.1</td>
+<td>1.7</td>
+<td>27.4</td>
+<td class='hl'>813.0 ms</td><td class='hl'>1.2</td></tr>
+<tr class='decode'><td>77</td><td style='text-align:center;'>Decode</td>
+<td>823.5</td>
+<td>115.1</td>
+<td>109.8</td>
+<td>65.0</td>
+<td>42.8</td>
+<td>5.4</td>
+<td>2.9</td>
+<td>2.4</td>
+<td>26.7</td>
+<td class='hl'>1193.6 ms</td><td class='hl'>0.8</td></tr>
+<tr class='decode'><td>78</td><td style='text-align:center;'>Decode</td>
+<td>650.5</td>
+<td>97.9</td>
+<td>88.3</td>
+<td>70.3</td>
+<td>29.3</td>
+<td>4.7</td>
+<td>6.6</td>
+<td>2.1</td>
+<td>27.3</td>
+<td class='hl'>977.0 ms</td><td class='hl'>1.0</td></tr>
+<tr class='decode'><td>79</td><td style='text-align:center;'>Decode</td>
+<td>786.8</td>
+<td>100.9</td>
+<td>107.3</td>
+<td>58.5</td>
+<td>36.0</td>
+<td>5.1</td>
+<td>3.0</td>
+<td>2.0</td>
+<td>30.6</td>
+<td class='hl'>1130.2 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>80</td><td style='text-align:center;'>Decode</td>
+<td>668.1</td>
+<td>99.0</td>
+<td>93.0</td>
+<td>54.7</td>
+<td>30.8</td>
+<td>5.7</td>
+<td>3.3</td>
+<td>2.0</td>
+<td>33.5</td>
+<td class='hl'>990.2 ms</td><td class='hl'>1.0</td></tr>
+<tr class='decode'><td>81</td><td style='text-align:center;'>Decode</td>
+<td>731.4</td>
+<td>100.1</td>
+<td>99.5</td>
+<td>43.6</td>
+<td>25.2</td>
+<td>4.8</td>
+<td>3.0</td>
+<td>1.8</td>
+<td>28.3</td>
+<td class='hl'>1037.7 ms</td><td class='hl'>1.0</td></tr>
+<tr class='decode'><td>82</td><td style='text-align:center;'>Decode</td>
+<td>650.6</td>
+<td>139.8</td>
+<td>88.3</td>
+<td>51.7</td>
+<td>28.4</td>
+<td>4.8</td>
+<td>3.2</td>
+<td>1.9</td>
+<td>33.2</td>
+<td class='hl'>1001.8 ms</td><td class='hl'>1.0</td></tr>
+<tr class='decode'><td>83</td><td style='text-align:center;'>Decode</td>
+<td>801.6</td>
+<td>103.6</td>
+<td>123.5</td>
+<td>48.8</td>
+<td>31.7</td>
+<td>4.8</td>
+<td>5.1</td>
+<td>2.2</td>
+<td>36.8</td>
+<td class='hl'>1158.0 ms</td><td class='hl'>0.9</td></tr>
+<tr class='decode'><td>84</td><td style='text-align:center;'>Decode</td>
+<td>825.8</td>
+<td>109.0</td>
+<td>103.3</td>
+<td>63.7</td>
+<td>39.9</td>
+<td>4.8</td>
+<td>3.0</td>
+<td>2.1</td>
+<td>29.6</td>
+<td class='hl'>1181.1 ms</td><td class='hl'>0.8</td></tr>
+<tr><td colspan='11' style='text-align:center'><b>Cumulative Time: 109.68 sec</b></td><td colspan='2'></td></tr>
+</table></body></html>
