@@ -158,7 +158,6 @@ Each output directory contains a `manifest.json` describing the variant, which t
 | Document | Link |
 |---|---|
 | Gemma 3N Reference Manual | [`docs/Gemma3N_Reference_Manual.md`](docs/Gemma3N_Reference_Manual.md) |
-| Project architecture (CLAUDE.md) | [`CLAUDE.md`](CLAUDE.md) |
 | Development notes | [`x64/gemma3N_E4B/Gemma3N_Dev_Docs.md`](x64/gemma3N_E4B/Gemma3N_Dev_Docs.md) |
 | Speculative Decoding research | [`docs/Speculative_Decoding_Research.md`](docs/Speculative_Decoding_Research.md) |
 | Blog (hwkim-dev.github.io) | [**llm-lite tag →**](https://hwkim-dev.github.io/hwkim-dev/blog/tags/llm-lite) |
