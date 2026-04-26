@@ -206,7 +206,7 @@ def _hf_cache_dir(hf_id: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser(description="Convert Gemma 3N weights into an MMAP-ready variant.")
-    ap.add_argument("--mode", choices=["int4", "int8", "fp16", "fp32"], default="int4",
+    ap.add_argument("--mode", choices=["int4", "int8", "fp8", "bf8", "fp16", "bf16", "fp32"], default="int4",
                     help="Output precision. Default: int4.")
     ap.add_argument("--src", default=None,
                     help="Source directory containing HuggingFace .safetensors. "

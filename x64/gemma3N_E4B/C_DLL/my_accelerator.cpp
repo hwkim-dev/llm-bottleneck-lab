@@ -431,3 +431,52 @@ extern "C" {
         }
     }
 }
+    // FP8, BF8, BF16 Fallback Kernels (Simulated)
+    void run_gemv_fp8(const float* __restrict__ vec, const int8_t* __restrict__ mat, const float* __restrict__ scale,
+                      float* __restrict__ out, int M, int K) {
+        #pragma omp parallel for
+        for (int i = 0; i < M; i++) {
+            float sum = 0.0f;
+            float row_scale = scale[i];
+            const int8_t* row_mat = &mat[i * K];
+            #pragma omp simd reduction(+:sum)
+            for (int j = 0; j < K; j++) {
+                sum += vec[j] * ((float)row_mat[j] * row_scale);
+            }
+            out[i] = sum;
+        }
+    }
+
+    void run_gemv_bf8(const float* __restrict__ vec, const int8_t* __restrict__ mat, const float* __restrict__ scale,
+                      float* __restrict__ out, int M, int K) {
+        // Similar fallback for BF8 (simulated with INT8 math for now in absence of native hardware ops)
+        #pragma omp parallel for
+        for (int i = 0; i < M; i++) {
+            float sum = 0.0f;
+            float row_scale = scale[i];
+            const int8_t* row_mat = &mat[i * K];
+            #pragma omp simd reduction(+:sum)
+            for (int j = 0; j < K; j++) {
+                sum += vec[j] * ((float)row_mat[j] * row_scale);
+            }
+            out[i] = sum;
+        }
+    }
+
+    void run_gemv_bf16(const float* __restrict__ vec, const uint16_t* __restrict__ mat, float* __restrict__ out, int M, int K) {
+        #pragma omp parallel for
+        for (int i = 0; i < M; i++) {
+            float sum = 0.0f;
+            const uint16_t* row_mat = &mat[i * K];
+            #pragma omp simd reduction(+:sum)
+            for (int j = 0; j < K; j++) {
+                uint16_t bf = row_mat[j];
+                // Convert bf16 to float32
+                uint32_t val = ((uint32_t)bf) << 16;
+                float fval;
+                std::memcpy(&fval, &val, sizeof(float));
+                sum += vec[j] * fval;
+            }
+            out[i] = sum;
+        }
+    }

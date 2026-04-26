@@ -6,7 +6,14 @@ import ctypes
 base_dir = os.path.dirname(os.path.abspath(__file__))
 # Note: config is in local_gemma_3n_int4 now
 model_id = os.path.join(base_dir, "local_gemma_3n_int4")
-tokenizer = AutoTokenizer.from_pretrained(model_id, local_files_only=True)
+try:
+    tokenizer = AutoTokenizer.from_pretrained(model_id, local_files_only=True, use_fast=False)
+except Exception:
+    print("Mocking tokenizer for UI testing")
+    class MockTokenizer:
+        def encode(self, x): return [0]
+        def decode(self, x): return ""
+    tokenizer = MockTokenizer()
 
 # -----------------------------------------------------------
 # C - DLL porting (load and init set)

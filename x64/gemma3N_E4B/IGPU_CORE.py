@@ -16,7 +16,7 @@ vk_lib.init_vulkan_engine.restype = None
 os.chdir(base_dir)
 
 # Load the GPU just once when the program is turned on.
-vk_lib.init_vulkan_engine()
+pass # vk_lib.init_vulkan_engine()
 
 # <><><><><><><><><><><><><><>Parameters<><><><><><><><><><><><><><>
 

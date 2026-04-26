@@ -11,63 +11,64 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
+
 :root {
-  --bg: #0a0a0f;
-  --bg-panel: #0f0f17;
-  --bg-surface: #16161f;
-  --bg-elevated: #1e1e2a;
-  --bg-hover: #252532;
-  --border: rgba(255,255,255,0.07);
-  --border-active: rgba(139,92,246,0.5);
-  --text: #e2e2f0;
-  --text-secondary: #8b8ba0;
-  --text-muted: #55556a;
-  --accent: #8b5cf6;
-  --accent-2: #06b6d4;
-  --accent-glow: rgba(139,92,246,0.15);
-  --user-bg: linear-gradient(135deg, #7c3aed, #4f46e5);
+  --bg: #1e1e1e; /* Xcode Dark */
+  --bg-panel: #252526;
+  --bg-surface: #2d2d2d;
+  --bg-elevated: #333333;
+  --bg-hover: #3e3e42;
+  --border: rgba(255,255,255,0.1);
+  --border-active: rgba(10,132,255,0.5); /* Apple Blue */
+  --text: #ffffff;
+  --text-secondary: #98989d;
+  --text-muted: #8e8e93;
+  --accent: #0a84ff; /* Apple Blue */
+  --accent-2: #30d158; /* Apple Green */
+  --accent-glow: rgba(10,132,255,0.15);
+  --user-bg: linear-gradient(135deg, #0a84ff, #0040dd);
   --model-bg: var(--bg-elevated);
-  --input-bg: rgba(255,255,255,0.04);
-  --scrollbar: #252532;
-  --code-bg: #0d0d14;
-  --radius: 14px;
-  --radius-sm: 8px;
-  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  --input-bg: rgba(255,255,255,0.05);
+  --scrollbar: #3e3e42;
+  --code-bg: #1e1e1e;
+  --radius: 8px; /* Mac style rounded corners */
+  --radius-sm: 4px;
+  --shadow: 0 4px 14px rgba(0,0,0,0.5);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 [data-theme="light"] {
-  --bg: #f5f5fa;
-  --bg-panel: #ebebf5;
-  --bg-surface: #ffffff;
-  --bg-elevated: #f0f0f8;
-  --bg-hover: #e8e8f2;
-  --border: rgba(0,0,0,0.08);
-  --border-active: rgba(124,58,237,0.4);
-  --text: #1a1a2e;
-  --text-secondary: #555570;
-  --text-muted: #9090aa;
-  --accent: #7c3aed;
-  --accent-2: #0891b2;
-  --accent-glow: rgba(124,58,237,0.08);
-  --user-bg: linear-gradient(135deg, #7c3aed, #4f46e5);
-  --model-bg: #ffffff;
-  --input-bg: rgba(0,0,0,0.04);
-  --scrollbar: #d0d0e0;
-  --code-bg: #1e1e2e;
+  --bg: #ffffff; /* Xcode Light */
+  --bg-panel: #f5f5f5;
+  --bg-surface: #ececec;
+  --bg-elevated: #e3e3e3;
+  --bg-hover: #d1d1d6;
+  --border: rgba(0,0,0,0.1);
+  --border-active: rgba(0,122,255,0.5); /* Apple Blue */
+  --text: #000000;
+  --text-secondary: #3c3c43;
+  --text-muted: #8e8e93;
+  --accent: #007aff; /* Apple Blue */
+  --accent-2: #34c759; /* Apple Green */
+  --accent-glow: rgba(0,122,255,0.15);
+  --user-bg: linear-gradient(135deg, #007aff, #0040dd);
+  --model-bg: var(--bg-surface);
+  --input-bg: rgba(0,0,0,0.05);
+  --scrollbar: #d1d1d6;
+  --code-bg: #f5f5f5;
 }
 
-*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
-  font-family: 'Inter', sans-serif;
+  margin: 0;
   background: var(--bg);
   color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   height: 100vh;
   display: flex;
   overflow: hidden;
-  font-size: 14px;
-  line-height: 1.6;
+  transition: background 0.3s, color 0.3s;
 }
+
 
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }

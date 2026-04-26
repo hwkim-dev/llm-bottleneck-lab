@@ -96,3 +96,33 @@ def warmup():
     dummy_s = np.zeros(2048, dtype=np.float32)
     igpu_matmul(dummy_x, (dummy_p, dummy_s))
     print("[CPU_GEMV] Warm-up complete! 6 cores loaded ")
+
+# Bindings for FP8, BF8, BF16
+if hasattr(c_lib, 'run_gemv_fp8'):
+    c_lib.run_gemv_fp8.argtypes = [
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        np.ctypeslib.ndpointer(dtype=np.int8, ndim=2, flags='C_CONTIGUOUS'),
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        ctypes.c_int, ctypes.c_int
+    ]
+    c_lib.run_gemv_fp8.restype = None
+
+if hasattr(c_lib, 'run_gemv_bf8'):
+    c_lib.run_gemv_bf8.argtypes = [
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        np.ctypeslib.ndpointer(dtype=np.int8, ndim=2, flags='C_CONTIGUOUS'),
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        ctypes.c_int, ctypes.c_int
+    ]
+    c_lib.run_gemv_bf8.restype = None
+
+if hasattr(c_lib, 'run_gemv_bf16'):
+    c_lib.run_gemv_bf16.argtypes = [
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        np.ctypeslib.ndpointer(dtype=np.uint16, ndim=2, flags='C_CONTIGUOUS'),
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        ctypes.c_int, ctypes.c_int
+    ]
+    c_lib.run_gemv_bf16.restype = None

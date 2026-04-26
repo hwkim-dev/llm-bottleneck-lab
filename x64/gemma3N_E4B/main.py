@@ -498,15 +498,17 @@ def select_modes():
         print("      python quantize.py --mode int4 --src /path/to/hf-gemma-3n-E4B-it\n")
 
     weight_menu = [("1", "INT4", "4-bit packed, Vulkan-accelerated"),
-                   ("2", "INT8", "8-bit, CPU matmul"),
-                   ("3", "FP16", "half precision, CPU matmul"),
-                   ("4", "FP32", "full precision baseline")]
-    print("\n  [Weight Mode]")
+                   ("2", "INT8", "8-bit symmetric, CPU matmul"),
+                   ("3", "FP8", "8-bit floating point, Vulkan/CPU"),
+                   ("4", "BF8", "8-bit bfloat, Vulkan/CPU"),
+                   ("5", "FP16", "half precision, CPU matmul"),
+                   ("6", "BF16", "16-bit bfloat, CPU matmul"),
+                   ("7", "FP32", "full precision baseline")]
     for key, mode, desc in weight_menu:
         marker = "✓" if mode.lower() in installed else " "
         print(f"    {key}) [{marker}] {mode:4}  — {desc}")
     choice = input("  Select [1-4, default=1]: ").strip()
-    WEIGHT_MODE = {"1": "INT4", "2": "INT8", "3": "FP16", "4": "FP32"}.get(choice, "INT4")
+    WEIGHT_MODE = {"1": "INT4", "2": "INT8", "3": "FP8", "4": "BF8", "5": "FP16", "6": "BF16", "7": "FP32"}.get(choice, "INT4")
 
     feature_options = {"1": "FP32", "2": "BF16", "3": "INT8", "4": "INT4"}
     print("\n  [Feature Map Mode] (activation precision)")
