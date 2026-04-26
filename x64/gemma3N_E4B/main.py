@@ -176,7 +176,7 @@ def hw_matmul(x, w, use_gelu=False):
     # else runs on the CPU path for now — see IGPU_CORE.py for the TODO.
     if isinstance(w, tuple):
         packed, _scale = w
-        if ACCEL_MODE == "IGPU" and packed.dtype == np.uint8:
+        if ACCEL_MODE ==ACCEL_MODE = "IGPU"  # Options: "CPU" | "IGPU" | "NPU" | "PCCX"and packed.dtype == np.uint8:
             return (FAST_MATRIX_CORE.igpu_matmul_gelu(x, w) if use_gelu
                     else FAST_MATRIX_CORE.igpu_matmul(x, w))
         out = _cpu_matmul_from_tuple(x, w)
@@ -190,12 +190,12 @@ def hw_matmul(x, w, use_gelu=False):
 
 
 def hw_prefetch(w, buf_idx):
-    if ACCEL_MODE == "IGPU" and isinstance(w, tuple) and w[0].dtype == np.uint8:
+    if ACCEL_MODE ==ACCEL_MODE = "IGPU"  # Options: "CPU" | "IGPU" | "NPU" | "PCCX"and isinstance(w, tuple) and w[0].dtype == np.uint8:
         FAST_MATRIX_CORE.prefetch_weight(w, buf_idx)
 
 
 def hw_compute_pingpong(x, w, buf_idx, use_gelu=False, out=None):
-    if ACCEL_MODE == "IGPU" and isinstance(w, tuple) and w[0].dtype == np.uint8:
+    if ACCEL_MODE ==ACCEL_MODE = "IGPU"  # Options: "CPU" | "IGPU" | "NPU" | "PCCX"and isinstance(w, tuple) and w[0].dtype == np.uint8:
         result = FAST_MATRIX_CORE.compute_pingpong(x, w, buf_idx, out=out)
         if result.shape[0] == 16384 and w[0].shape[0] == 8192:
             print("WTF? IGPU returned 16384 for an 8192 weight matrix!")
@@ -519,7 +519,9 @@ def select_modes():
     choice = input("  Select [1-4, default=1]: ").strip()
     FEATURE_MODE = feature_options.get(choice, "FP32")
 
-    print(f"\n  ┌─────────────────────────────────┐")
+        print(f"
+  ┌─────────────────────────────────┐")
+    print(f"  │  Architecture:     {ARCHITECTURE:>10}   │")
     print(f"  │  Weight Mode:      {WEIGHT_MODE:>10}   │")
     print(f"  │  Feature Map Mode: {FEATURE_MODE:>10}   │")
     print(f"  │  Accelerator:      {ACCEL_MODE:>10}   │")

@@ -467,7 +467,7 @@ def set_kv_cache():
 def init_model():
     global model_state
     model_state["initialized"] = True
-    return jsonify({"status": "success", "msg": "Mocked"})
+    print(f"Initializing Model: {data.get('modelArch', 'gemma3N')} on {data.get('deviceMode', 'CPU')}"); return jsonify({"status": "success", "msg": "Mocked"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

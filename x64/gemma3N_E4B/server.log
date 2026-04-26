@@ -1,3 +1,7 @@
-Mocking tokenizer for UI testing
- * Serving Flask app 'gui_app'
- * Debug mode: off
+Traceback (most recent call last):
+  File "/app/x64/gemma3N_E4B/gui_app.py", line 28, in <module>
+    import main as gem_main
+  File "/app/x64/gemma3N_E4B/main.py", line 179
+    if ACCEL_MODE ==ACCEL_MODE = "IGPU"  # Options: "CPU" | "IGPU" | "NPU" | "PCCX"and packed.dtype == np.uint8:
+                               ^
+SyntaxError: invalid syntax
