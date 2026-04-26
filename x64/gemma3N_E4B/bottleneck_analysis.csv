@@ -1,0 +1,4 @@
+label,input_tokens,kv_cache_mb,ffn_read_per_tok_mb,attn_read_per_tok_mb,attn_to_ffn_read_ratio,measured_ffn_pct,measured_attn_pct,ffn_ms,attn_ms,decode_ms
+short,13,0.89,1680.0,0.89,0.001,75.3,0.9,993.8,11.8,1372.1
+medium,172,11.76,1680.0,11.76,0.007,68.0,6.7,719.8,70.9,1103.8
+long,658,44.98,1680.0,44.98,0.027,49.1,28.9,528.5,311.3,1108.5
