@@ -43,8 +43,11 @@ Instead of pruning the model architecture, it leverages aggressive quantization 
 |---|---|---|
 | `INT4` | Packed 4-bit weights + per-row FP32 scale. **Vulkan-accelerated**. Default. | Modern iGPU / dGPU |
 | `INT8` | 8-bit quantized weights + per-row scale (no packing). CPU matmul. | Where INT4 accuracy insufficient |
+| `FP8`  | 8-bit floating point. Experimental Vulkan/CPU. | Next-gen architectures |
+| `BF8`  | 8-bit bfloat format. Experimental Vulkan/CPU. | ML-optimized setups |
 | `FP16` | Raw half-precision weights. CPU matmul. | Older iGPUs (e.g., Vega 6) where FP16 beats INT |
-| `FP32` | Full precision baseline — debugging / accuracy reference. | Large-RAM systems |
+| `BF16` | 16-bit bfloat weights. CPU matmul. | Standard fallback for ML workloads |
+| `FP32` | Full precision baseline — debugging / accuracy reference. | Large-RAM systems | Large-RAM systems |
 
 > **⚠ Note:** On older integrated GPUs (Renoir Vega 6/7, Intel HD/UHD ≤ Gen 9), floating-point paths can outperform integer quantization due to missing fast INT pipelines. The GUI auto-detects this and surfaces a warning.
 
