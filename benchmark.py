@@ -18,8 +18,6 @@ def main():
     backends = [b.strip() for b in args.backends.split(",")]
     precisions = [p.strip() for p in args.precisions.split(",")]
 
-    print(f"Starting benchmark.py with model={args.model}, backends={backends}, precisions={precisions}, dry_run={args.dry_run}")
-
     runner = BenchmarkRunner(model_path=args.model, backends=backends, precisions=precisions)
     results = runner.run(dry_run=args.dry_run)
 
@@ -34,8 +32,15 @@ def main():
         res.save_json(f"{base_name}.json")
         res.save_markdown(f"{base_name}.md")
 
-    html_path = f"results/benchmarks/{model_name}_summary.html"
+    html_path = f"results/benchmarks/summary.html"
     generate_html_report(results, html_path)
+
+    # Try generating standard summary MD report
+    try:
+        import scripts.generate_report
+        scripts.generate_report.generate_markdown_summary("results/benchmarks", "results/benchmarks/summary.md")
+    except Exception as e:
+        pass
 
     print(f"Benchmarking complete. Reports saved to results/benchmarks/")
 
