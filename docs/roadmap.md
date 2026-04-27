@@ -7,6 +7,11 @@ The development of `llm-lite` follows a phased approach to build the ultimate lo
 * [x] Implement the ModelRegistry and RuntimeContext.
 * [x] Create adapter skeletons for Gemma3N, Llama, Qwen, DeepSeek-Distill, and BitNet.
 
+## Phase 1.5: Reliability Pass Completed
+* [x] CI pipeline verification
+* [x] Runnable dry-run CLI
+* [x] Verified model skeletons and configurations
+
 ## Phase 2: Quantization Matrix
 * [x] Define skeleton interfaces for FP16, INT8, INT4, and Ternary quantization.
 * [ ] Implement actual quantization and packing logic for INT4.

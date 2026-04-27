@@ -1,41 +1,38 @@
-name: Ubuntu x86_64 CI
+name: Smoke Test
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ main ]
 
 jobs:
-  build-and-test:
+  smoke-test:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libvulkan-dev glslang-tools python3-pip python3-venv
-
-    - name: Setup Python
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.12'
+        python-version: "3.10"
 
-    - name: Create venv and install Python dependencies
-      run: |
-        python3 -m venv x64/gemma3N_E4B/pynq_env
-        source x64/gemma3N_E4B/pynq_env/bin/activate
-        pip install --upgrade pip
-        pip install -r x64/gemma3N_E4B/requirements.txt
+    - name: Check Python Version
+      run: python --version
 
-    - name: Build C++ DLLs
+    - name: Compile python files
       run: |
-        cd x64/gemma3N_E4B
-        bash build.sh
+        python -m py_compile run.py benchmark.py scripts/generate_report.py
+        python -m compileall engine scripts
 
-    - name: Run Smoke Test
+    - name: Run Run.py Smoke Tests
       run: |
-        source x64/gemma3N_E4B/pynq_env/bin/activate
-        python x64/gemma3N_E4B/smoke_test.py
+        python run.py --model examples/tiny_model_stub --backend cpu --precision fp16 --dry-run
+        python run.py --model examples/tiny_model_stub --backend vulkan --precision int4 --dry-run
+
+    - name: Run Benchmark Smoke Test
+      run: |
+        python benchmark.py --model examples/tiny_model_stub --backends cpu,vulkan --precisions fp16,int4 --dry-run
+
+    - name: Generate Report
+      run: python scripts/generate_report.py

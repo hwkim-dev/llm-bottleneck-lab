@@ -1,12 +1,16 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict, Any
 
 @dataclass
 class RuntimeContext:
     backend_name: str
     precision: str
-    num_threads: int = 4
-    gpu_id: int = 0
+    dry_run: bool = False
+    device_info: Optional[Dict[str, Any]] = None
+
+    def validate(self):
+        """Validate if the backend and precision are compatible."""
+        pass # Optional checks can go here
 
     def initialize(self):
         # Stub for backend initialization
