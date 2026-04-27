@@ -1,5 +1,5 @@
 from engine.core.report import BenchmarkMetrics
-import time
+
 
 class BenchmarkRunner:
     def __init__(self, model_path: str, backends: list[str], precisions: list[str]):
