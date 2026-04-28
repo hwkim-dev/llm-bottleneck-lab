@@ -1,332 +1,305 @@
 # LLM Bottleneck Lab
 
-> **Measure and visualize why LLM inference is slow.**
->
-> A research-oriented lab for **automatic bottleneck measurement**, **model-specific dissection**, **quantized runnable inference**, and **WebGPU-powered visual reports**.
+> **Measure and visualize why LLM inference is slow.**  
+> A research-oriented lab for **bottleneck analysis**, **model dissection**, **KV-cache growth**, **GEMM/GEMV behavior**, **quantization**, and **memory-bound decoding**.
 
 <p align="center">
-  <a href="https://github.com/hwkim-dev/llm-bottleneck-lab/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/hwkim-dev/llm-bottleneck-lab/ci.yml?branch=main&label=ci"></a>
-  <a href="https://github.com/hwkim-dev/llm-bottleneck-lab/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/hwkim-dev/llm-bottleneck-lab"></a>
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-blue">
-  <img alt="WebGPU" src="https://img.shields.io/badge/WebGPU-visual%20lab-purple">
-  <img alt="Status" src="https://img.shields.io/badge/status-research%20lab-orange">
+  <a href="https://github.com/hwkim-dev/llm-bottleneck-lab/actions">
+    <img alt="CI" src="https://github.com/hwkim-dev/llm-bottleneck-lab/actions/workflows/ci.yml/badge.svg">
+  </a>
+  <a href="./LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
+  </a>
+  <img alt="Status" src="https://img.shields.io/badge/status-research--lab-orange">
+  <img alt="Focus" src="https://img.shields.io/badge/focus-LLM%20bottlenecks-purple">
 </p>
 
 <p align="center">
-  <b>Auto profile any model.</b> Dissect supported architectures. Run quantized experiments. Publish reproducible bottleneck reports.
+  <b>Not another chat UI. Not another llama.cpp clone.</b><br/>
+  This repo is a lab for finding where LLM inference time and memory actually go.
 </p>
 
 ---
 
-## What is this?
+## Why this repo exists
 
-`llm-bottleneck-lab` is **not another production inference engine** and it is **not a `llama.cpp` replacement**.
+Most Transformer explainers show **how attention works**.
 
-It is a lab for answering one practical systems question:
+This repo asks a different question:
 
-> **Where do the time and memory go during LLM inference?**
+> **When an LLM runs locally, what actually becomes the bottleneck?**
 
-Most Transformer explainers show how attention works.
-This project focuses on what happens when inference meets real hardware limits:
+For small and local LLMs, raw model size is only one part of the story. Real inference behavior is shaped by:
 
-- prefill vs decode behavior
-- GEMM vs GEMV bottlenecks
-- KV-cache growth
-- memory-bound decoding
-- quantization trade-offs
-- thread scaling limits
-- backend-specific overhead
-- low-spec hardware behavior
+- **prefill vs decode** latency
+- **GEMM vs GEMV** execution patterns
+- **KV-cache** memory growth
+- **memory bandwidth** limits
+- **thread scaling** overhead
+- **quantization** trade-offs
+- backend behavior across **CPU, iGPU/Vulkan, WebGPU, and experimental NPU paths**
 
-The goal is to make these bottlenecks **measurable**, **visible**, and **reproducible**.
+LLM Bottleneck Lab turns those into measurable experiments, visual reports, and reproducible artifacts.
 
 ---
 
-## The core idea
+## Core idea
 
 ```text
-Prompt tokens
-   │
-   ▼
-Prefill
-   ├─ many tokens at once
-   ├─ GEMM-like work
-   └─ compute-friendly parallelism
-   │
-   ▼
-KV-cache grows
-   │
-   ▼
-Decode
-   ├─ one token at a time
-   ├─ GEMV-like work
-   ├─ repeated KV-cache reads
-   └─ memory bandwidth becomes the wall
+LLM Bottleneck Lab
+= automatic bottleneck measurement
++ surgical model-specific dissection
++ quantized runnable inference experiments
++ WebGPU/WebGL visual reports
++ release-ready local profiling tools
 ```
 
-This lab is built around that transition: **from compute-friendly prefill to memory-bound decode**.
+### Two analysis modes
 
----
-
-## Two measurement modes
+| Mode | Question it answers | Scope |
+|---|---|---|
+| **Auto Measurement** | “Where does this model seem slow?” | Broad, model-agnostic profiling |
+| **Surgical Dissection** | “Which internal operation is causing it?” | Deep, model-specific analysis |
 
 ### 1. Auto Bottleneck Measurement
 
-Use this mode when you want to profile a model without manually opening its internals.
+Use this when you want to profile a model without manually dissecting its internals.
 
-Auto mode treats the model/runtime as a mostly black-box system and measures:
+Planned/target metrics:
 
-- TTFT: time to first token
-- prefill latency
-- decode latency
-- tokens/sec
-- memory usage
-- KV-cache estimate
-- thread scaling
-- backend comparison
-- precision comparison
-
-```bash
-llm-bottleneck analyze \
-  --model ./models/my-model \
-  --backend cpu \
-  --precision int4 \
-  --prompt "Explain KV-cache in one paragraph."
-```
-
-Auto mode answers:
-
-> **Where does this model seem slow?**
-
----
+- TTFT, total latency, decode tokens/sec
+- prefill vs decode timing
+- memory usage and KV-cache estimate
+- thread scaling behavior
+- precision impact: FP16 / INT8 / INT4 / ternary
+- backend impact: CPU / Vulkan / WebGPU / NPU-style paths
 
 ### 2. Surgical Bottleneck Dissection
 
-Use this mode when the model architecture has a dedicated dissector.
+Use this when a model family has a dedicated dissector.
 
-Surgical mode exposes internal bottlenecks such as:
+This mode can expose:
 
 - layer-by-layer latency
 - attention vs MLP cost
 - GEMM/GEMV behavior
 - KV-cache read/write cost
-- weight loading pressure
-- activation memory
 - quantization error
 - operator-level bottlenecks
 
-```bash
-llm-bottleneck dissect \
-  --model-family gemma3n \
-  --model ./models/gemma-3n-e4b \
-  --backend cpu \
-  --precision int4 \
-  --profile attention,mlp,kv-cache,matmul
-```
-
-Surgical mode answers:
-
-> **Exactly which internal operation is making it slow?**
-
-The first surgical target is the existing Gemma 3N E4B research path, but the long-term goal is a model-family adapter system for Llama, Qwen, DeepSeek, Phi, BitNet-style models, and other local LLM formats.
+The first deep-dive target is the existing **Gemma 3N E4B** path, but the lab is designed to expand to other model families.
 
 ---
 
-## Quantized runnable inference
+## What makes this different
 
-Inference is included for measurement, not for chatbot competition.
+| Project type | Main goal | This repo |
+|---|---|---|
+| `llama.cpp`-style engines | Run models fast | Explain and measure bottlenecks |
+| Chat UIs | Talk to a model | Visualize inference behavior |
+| Benchmark tables | Report numbers | Connect numbers to internal causes |
+| Transformer explainers | Explain architecture | Explain runtime bottlenecks |
+| Model repos | Provide weights | Provide reproducible analysis tools |
 
-The lab should support runnable inference paths across precision modes:
-
-- FP16 / BF16 baseline
-- INT8
-- INT4
-- ternary or BitNet-style experiments later
-
-The key question is not only:
-
-> Can the model run?
-
-The real question is:
-
-> What bottleneck appears when this model runs under this precision, backend, and hardware setup?
+This project is intentionally positioned as a **systems lab**, not a production serving engine.
 
 ---
 
-## Planned report site
+## Visual report direction
 
-The GitHub Pages site will be a **report-style visual lab**, not just a landing page.
+The GitHub Pages site will be a report-style visual lab, not a static documentation dump.
 
-Planned sections:
+Planned visual reports:
 
-| Section | Purpose |
-|---|---|
-| Overview | What was measured and why it matters |
-| Auto Reports | Model/backend/precision benchmark summaries |
-| Surgical Reports | Deep dives for supported architectures |
-| Visual Lab | WebGPU/WebGL scenes for inference bottlenecks |
-| Reproducibility | Hardware, commands, configs, raw result files |
-| Release CLI | Downloadable bottleneck measurement program |
+- **Prefill vs Decode** — why generating one token at a time changes the bottleneck
+- **GEMM vs GEMV** — why decode can underuse compute
+- **KV-cache Growth** — how context length becomes memory pressure
+- **Quantization Trade-offs** — why smaller weights do not automatically mean faster inference
+- **Memory Wall View** — when bandwidth dominates arithmetic
+- **Thread Scaling** — why more CPU threads can stop helping
 
-Planned visual scenes:
-
-- Prefill vs Decode
-- GEMM vs GEMV
-- KV-cache growth
-- Quantization trade-offs
-- Memory wall / roofline-style view
-- Thread scaling
-- Backend comparison
-
-Large GIFs are intentionally avoided. The visual lab should render real-time animations in the browser using WebGL/WebGPU where possible, with Canvas/SVG fallbacks.
-
----
-
-## Release program vision
-
-The long-term release artifact is a CLI/binary named:
-
-```text
-llm-bottleneck
-```
-
-Planned commands:
-
-```bash
-llm-bottleneck run       # run quantized inference for measurement
-llm-bottleneck analyze   # automatic bottleneck measurement
-llm-bottleneck dissect   # model-specific internal dissection
-llm-bottleneck report    # generate Markdown/HTML/JSON reports
-llm-bottleneck visualize # export data for WebGPU visual reports
-```
-
-Planned release assets:
-
-```text
-llm-bottleneck-linux-x64
-llm-bottleneck-linux-arm64
-llm-bottleneck-windows-x64.exe
-llm-bottleneck-macos-arm64
-```
+The goal is to make bottlenecks visible before looking at the code.
 
 ---
 
 ## Current status
 
-This repository currently contains a runnable research scaffold and low-level experimental paths.
+This repository is being refactored from the original `llm-lite` scaffold into **LLM Bottleneck Lab**.
 
-| Area | Status |
-|---|---|
-| CLI scaffold | Working dry-run path |
-| Benchmark/report generation | Working dry-run path |
-| Tiny stub model | Available for platform checks |
-| CPU backend | Reference/skeleton path |
-| Vulkan backend | Skeleton / planned offload path |
-| FPGA-style NPU path | Experimental research path |
-| Gemma 3N E4B path | Preserved as the first surgical target |
-| WebGPU visual lab | Planned |
-| Auto bottleneck measurement | Planned |
-| Multi-model dissector system | Planned |
-| Production inference server | Not the goal |
+Current working pieces include:
+
+- a modular research scaffold
+- CLI entry points for dry-run execution and benchmarking
+- benchmark report generation
+- model adapter structure
+- quantization/backends skeletons
+- preserved Gemma 3N E4B legacy research path
+
+> **Note**  
+> Some paths are intentionally experimental. This repo prioritizes measurement, reproducibility, and analysis over production-grade inference.
 
 ---
 
 ## Quick start
 
-Use the tiny stub model to verify that the scaffold works without downloading model weights.
+### 1. Clone
 
 ```bash
-# Test adapter resolution
+git clone https://github.com/hwkim-dev/llm-bottleneck-lab.git
+cd llm-bottleneck-lab
+```
+
+### 2. Run the smoke test
+
+The tiny stub model verifies that the platform wiring works without downloading real model weights.
+
+```bash
 python run.py \
   --model examples/tiny_model_stub \
   --backend cpu \
   --precision fp16 \
   --dry-run
+```
 
-# Generate benchmark JSON/HTML output in dry-run mode
+### 3. Generate a dry-run benchmark report
+
+```bash
 python benchmark.py \
   --model examples/tiny_model_stub \
   --backends cpu,vulkan \
   --precisions fp16,int4 \
   --dry-run
+```
 
-# Generate Markdown summary from benchmark results
+### 4. Generate a Markdown summary
+
+```bash
 python scripts/generate_report.py
 ```
 
-> Dry-run mode does not load real model weights and does not represent real performance.
-> It verifies adapter routing, backend selection, precision routing, and report generation.
+Dry-run mode is **not** a real performance benchmark. It is a platform-health check.
 
 ---
 
-## Planned architecture
+## Supported model families
+
+| Model family | Current role | Status |
+|---|---|---|
+| Gemma 3N | First surgical dissection target | Legacy path preserved |
+| Llama | General adapter target | Skeleton |
+| Qwen | General adapter target | Skeleton |
+| DeepSeek-Distill | General adapter target | Skeleton |
+| BitNet-style models | Ternary quantization target | Experimental |
+
+The long-term goal is not to support every model as a chat engine.  
+The goal is to make each supported model useful for **bottleneck analysis**.
+
+---
+
+## Backends and precision paths
+
+### Backends
+
+| Backend | Target | Status |
+|---|---|---|
+| `cpu` | x86 / ARM reference path | Runnable scaffold |
+| `vulkan` | iGPU / dGPU offload | Skeleton |
+| `webgpu` | browser visual lab and future compute experiments | Planned |
+| `npu_uca` | FPGA/NPU-style research path | Experimental |
+
+### Precision
+
+| Precision | Purpose | Status |
+|---|---|---|
+| `fp16` | baseline comparison | Skeleton |
+| `int8` | practical quantized path | Skeleton |
+| `int4` | memory-pressure experiments | Skeleton |
+| `ternary` | BitNet-style research | Experimental |
+
+Quantized inference is treated as a first-class experiment path because bottlenecks change when weights become smaller.
+
+---
+
+## Repository map
 
 ```text
 llm-bottleneck-lab/
-├── engine/                     # Modular research engine scaffold
-├── profiler/
-│   ├── auto/                    # Black-box bottleneck measurement
-│   └── surgical/                # Model-specific internal dissection
-├── models/
-│   └── adapters/                # Generic + model-family adapters
-├── quantization/                # FP16/INT8/INT4/ternary experiments
-├── reports/                     # Report templates and result schemas
-├── web/                         # GitHub Pages visual report site
-├── experiments/                 # Python experiments and generated data
-├── native/                      # Low-level CPU/Vulkan/native work
-├── results/                     # Generated benchmark/report artifacts
-├── x64/
-│   └── gemma3N_E4B/             # Preserved first surgical target
-├── benchmark.py
-├── run.py
-└── scripts/
+├── engine/                  # modular runtime, backend, quantization scaffold
+├── examples/                # tiny stub model and test fixtures
+├── scripts/                 # report generation utilities
+├── results/                 # generated reports and benchmark artifacts
+├── docs/                    # concepts, measurement modes, report notes
+├── x64/gemma3N_E4B/         # preserved Gemma 3N E4B deep-dive path
+├── run.py                   # runnable entry point
+├── benchmark.py             # benchmark/report entry point
+└── README.md
+```
+
+Planned additions:
+
+```text
+web/                         # WebGPU/WebGL visual report site
+profiler/                    # automatic and surgical profilers
+models/adapters/             # model-family adapters
+reports/                     # reproducible report templates
+release/                     # packaged local measurement tools
 ```
 
 ---
 
-## Model support strategy
+## Target CLI shape
 
-The project should not be locked to one model family.
+The release program is planned around a small local profiler CLI:
 
-### Generic mode
-
-Generic mode should work with many local model paths or runtimes by measuring observable behavior:
-
-- latency
-- tokens/sec
-- memory usage
-- precision impact
-- backend impact
-- thread scaling
-
-### Surgical mode
-
-Surgical mode should be added one family at a time through dedicated dissectors:
-
-```text
-models/adapters/
-├── generic/
-├── gemma3n/
-├── llama/
-├── qwen/
-├── deepseek/
-├── phi/
-└── bitnet/
+```bash
+llm-bottleneck run       # run quantized inference experiment
+llm-bottleneck analyze   # automatic bottleneck measurement
+llm-bottleneck dissect   # model-specific internal analysis
+llm-bottleneck report    # generate GitHub Pages / Markdown report
 ```
 
-The Gemma 3N E4B path is the first deep-dive target because it already has focused experimental work. Future models should be added only when the dissector can expose meaningful internals.
+Example target workflow:
+
+```bash
+llm-bottleneck analyze \
+  --model ./models/qwen2.5-1.5b \
+  --backend cpu \
+  --precision int4 \
+  --prompt "Explain KV-cache briefly."
+```
+
+Example target output:
+
+```text
+Likely bottleneck: memory bandwidth
+TTFT: 812 ms
+Decode speed: 14.2 tok/s
+KV-cache estimate: 420 MB
+Precision: INT4
+Backend: CPU
+```
 
 ---
 
 ## Design principles
 
-1. **Measure first.** Do not guess bottlenecks when they can be measured.
-2. **Visualize clearly.** Every chart or animation must explain a system behavior.
-3. **Separate generic and surgical modes.** Black-box profiling and architecture dissection are different tasks.
-4. **Quantization is core.** Precision changes are part of bottleneck analysis, not an optional add-on.
-5. **No huge assets.** Avoid large GIFs, videos, and model weights in the repository.
-6. **Static-site friendly.** GitHub Pages should serve the report; computation runs locally or in the browser.
-7. **Research honesty.** Mark approximations, dry-runs, and planned features clearly.
+1. **Measure first.**  
+   Every visual claim should eventually connect to a metric, script, or report.
+
+2. **Do not hide the bottleneck.**  
+   The goal is to expose memory movement, KV-cache growth, and operator cost.
+
+3. **Stay reproducible.**  
+   Reports should include commands, configs, hardware notes, and raw outputs.
+
+4. **Avoid huge assets.**  
+   No large model weights, large GIFs, or heavy videos in git.
+
+5. **Keep it static-hosting friendly.**  
+   The report site should work on GitHub Pages or Cloudflare Pages.
+
+6. **Be honest about scope.**  
+   This is a research lab, not a production inference engine.
 
 ---
 
@@ -334,76 +307,91 @@ The Gemma 3N E4B path is the first deep-dive target because it already has focus
 
 ### Phase 0 — Rebrand and clarify
 
-- [ ] Replace old `llm-lite` wording
-- [ ] Clarify that this is a bottleneck lab, not a production inference engine
-- [ ] Add About description and GitHub topics
-- [ ] Preserve existing Gemma path as first surgical target
+- [ ] Rename all visible `llm-lite` references
+- [ ] Update badges and repo description
+- [ ] Position repo as a bottleneck analysis lab
+- [ ] Separate current scaffold from future targets
 
-### Phase 1 — Auto bottleneck measurement
+### Phase 1 — Measurement baseline
 
-- [ ] Define result schema
-- [ ] Measure TTFT, prefill, decode, tokens/sec
-- [ ] Add memory and KV-cache estimates
-- [ ] Add backend and precision comparison
-- [ ] Generate JSON/Markdown reports
+- [ ] Stabilize dry-run benchmark schema
+- [ ] Add JSON result format
+- [ ] Add TTFT / decode / memory estimate fields
+- [ ] Add repeatable hardware metadata capture
+- [ ] Add report generator improvements
 
-### Phase 2 — Quantized runnable inference
+### Phase 2 — Quantized runnable experiments
 
-- [ ] Stabilize `run` path for measurement
-- [ ] Add precision routing for FP16/INT8/INT4
-- [ ] Add clear measurement output
-- [ ] Keep inference scoped to reproducible experiments
+- [ ] FP16 baseline path
+- [ ] INT8 experiment path
+- [ ] INT4 experiment path
+- [ ] Quantization error report
+- [ ] Compare precision vs memory pressure
 
 ### Phase 3 — Surgical dissection
 
 - [ ] Formalize model-family dissector interface
-- [ ] Convert Gemma 3N E4B work into the first official surgical report
-- [ ] Add layer/operator timing where possible
-- [ ] Add attention/MLP/KV-cache breakdown
+- [ ] Promote Gemma 3N E4B as the first deep-dive specimen
+- [ ] Add layer/operator timing schema
+- [ ] Add attention/MLP/KV-cache breakdown reports
 
-### Phase 4 — GitHub Pages report site
+### Phase 4 — Visual report site
 
-- [ ] Create report-style site
-- [ ] Add benchmark dashboards
-- [ ] Add WebGL/WebGPU visual scenes
-- [ ] Add static fallback images
-- [ ] Link reports to raw JSON/CSV data
+- [ ] Add WebGPU/WebGL report site
+- [ ] Add Prefill vs Decode visualization
+- [ ] Add KV-cache growth visualization
+- [ ] Add GEMM vs GEMV visualization
+- [ ] Add quantization visualization
+- [ ] Publish GitHub Pages report
 
-### Phase 5 — Release CLI
+### Phase 5 — Release profiler
 
-- [ ] Package `llm-bottleneck` binary
-- [ ] Add `run`, `analyze`, `dissect`, `report` commands
-- [ ] Publish release artifacts
-- [ ] Include reproducibility examples
-
-### Phase 6 — Multi-model expansion
-
-- [ ] Add generic runtime adapters
-- [ ] Add Llama-family dissector
-- [ ] Add Qwen-family dissector
-- [ ] Add DeepSeek/Phi/BitNet-style experiments
-- [ ] Compare models under the same report schema
+- [ ] Package local CLI
+- [ ] Add Linux x64 release artifact
+- [ ] Add reproducible benchmark templates
+- [ ] Add example reports for multiple model families
 
 ---
 
-## What this project is not
+## Contributing
 
-- Not a hosted chatbot
-- Not a production inference server
-- Not a model zoo
-- Not a benchmark leaderboard without explanations
-- Not a replacement for `llama.cpp`, vLLM, TensorRT-LLM, or Ollama
+Contributions are welcome if they help answer one of these questions:
 
-This project exists to explain and measure bottlenecks.
+- Where does inference time go?
+- Where does memory go?
+- Which operation is the bottleneck?
+- How does quantization change the bottleneck?
+- How does backend choice change the bottleneck?
+- How can the result be visualized clearly?
+
+Good first contribution areas:
+
+- benchmark result schemas
+- model adapter skeletons
+- KV-cache formulas
+- quantization experiments
+- WebGPU/WebGL visual scenes
+- report templates
+- documentation diagrams
 
 ---
 
-## One-line summary
+## Citation / research use
 
-> **LLM Bottleneck Lab measures, visualizes, and dissects why LLM inference becomes slow across models, backends, and quantization modes.**
+If you use this project for a report, paper, or class project, please cite the repository and include:
+
+- commit hash
+- model family
+- backend
+- precision
+- hardware
+- benchmark command
+- generated report
+
+Reproducibility matters more than a single token/sec number.
 
 ---
 
 ## License
 
-Apache-2.0. See [`LICENSE`](./LICENSE).
+MIT License. See [`LICENSE`](./LICENSE).
