@@ -4,11 +4,11 @@
 > A research-oriented lab for **bottleneck analysis**, **model dissection**, **KV-cache growth**, **GEMM/GEMV behavior**, **quantization**, and **memory-bound decoding**.
 
 <p align="center">
-  <a href="https://github.com/hwkim-dev/llm-bottleneck-lab/actions">
-    <img alt="CI" src="https://github.com/hwkim-dev/llm-bottleneck-lab/actions/workflows/ci.yml/badge.svg">
+  <a href="https://github.com/hkimw/llm-bottleneck-lab/actions">
+    <img alt="CI" src="https://github.com/hkimw/llm-bottleneck-lab/actions/workflows/ci.yml/badge.svg">
   </a>
   <a href="./LICENSE">
-    <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
+    <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue">
   </a>
   <img alt="Status" src="https://img.shields.io/badge/status-research--lab-orange">
   <img alt="Focus" src="https://img.shields.io/badge/focus-LLM%20bottlenecks-purple">
@@ -145,7 +145,7 @@ Current working pieces include:
 ### 1. Clone
 
 ```bash
-git clone https://github.com/hwkim-dev/llm-bottleneck-lab.git
+git clone https://github.com/hkimw/llm-bottleneck-lab.git
 cd llm-bottleneck-lab
 ```
 
@@ -394,4 +394,4 @@ Reproducibility matters more than a single token/sec number.
 
 ## License
 
-MIT License. See [`LICENSE`](./LICENSE).
+Apache-2.0 License. See [`LICENSE`](./LICENSE).
