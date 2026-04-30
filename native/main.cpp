@@ -1123,7 +1123,7 @@ static void draw_about_tab(float sw, float sh, float header_h)
 
     ImGui::Dummy({0, 24});
     ImGui::PushStyleColor(ImGuiCol_Text, COL_TEXT_MUTED);
-    ImGui::TextWrapped("\xc2\xa9 2026 hkimw \xe2\x80\x94 Licensed under the MIT License.");
+    ImGui::TextWrapped("\xc2\xa9 2026 hkimw \xe2\x80\x94 Licensed under the Apache License 2.0.");
     ImGui::TextWrapped("Built on NumPy \xc2\xb7 Flask \xc2\xb7 Dear ImGui \xc2\xb7 Vulkan \xc2\xb7 huggingface_hub.");
     ImGui::PopStyleColor();
 
